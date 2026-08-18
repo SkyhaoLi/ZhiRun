@@ -33,11 +33,21 @@ def transact(port, command, reset=True):
         end = time.monotonic() + 4.0
         data = bytearray()
         while time.monotonic() < end:
-            ready, _, _ = select.select([fd], [], [], 0.5)
+            ready, _, _ = select.select([fd], [], [], min(0.5, end - time.monotonic()))
             if ready:
                 data.extend(os.read(fd, 1024))
-                if b"\n" in data:
-                    break
+                # ESP32 prints a diagnostic "Command:" line before the JSON
+                # acknowledgement. Do not return on that line: the caller
+                # needs the complete STATE response to know the pump command
+                # was actually applied.
+                marker = data.find(b"STATE ")
+                if marker >= 0:
+                    try:
+                        json.JSONDecoder().raw_decode(
+                            bytes(data[marker + 6:]).decode("utf-8", "replace").lstrip())
+                        break
+                    except json.JSONDecodeError:
+                        pass
         print(bytes(data).decode("utf-8", "replace"), end="")
     finally:
         os.close(fd)
