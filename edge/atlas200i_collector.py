@@ -491,6 +491,7 @@ class ValveController:
         # Safe startup mode: automatic control must be explicitly selected
         # after the relay and ESP32 link are confirmed healthy.
         self.mode = "manual"
+        self.mode_command_at = 0.0
         self.open_count = 0
         self.started_at = 0.0
         self.last_poll = 0.0
@@ -652,6 +653,9 @@ class ValveController:
                 "wifiNetworks": self.wifi_networks, "wifiScannedAt": self.wifi_scanned_at,
                 "wifiError": self.wifi_error, "wifiConnected": wifi_connected, "wifiSsid": wifi_ssid}
         state.update(self.esp_state)
+        # A delayed UART frame from before the latest mode command must not
+        # make the dashboard jump back to the previous control mode.
+        state["mode"] = self.mode
         return state
 
     def _forward_to_esp(self, command, allow_retry=True):
@@ -697,7 +701,10 @@ class ValveController:
                         self.started_at = time.monotonic() - reported_run_s
                     elif not self.valve_on:
                         self.started_at = 0.0
-                    self.mode = state.get("mode", self.mode)
+                    reported_mode = state.get("mode", self.mode)
+                    if (reported_mode == self.mode or
+                            time.monotonic() - self.mode_command_at >= 3.0):
+                        self.mode = reported_mode
                     self.error = state.get("error", "")
                     print("[ESP] state %s" % json.dumps(state, separators=(",", ":")))
                     got_state = True
@@ -737,6 +744,7 @@ class ValveController:
                 # later STATE frame will replace this optimistic state.
                 if action == "mode" and command.get("mode") in {"manual", "auto"}:
                     self.mode = command["mode"]
+                    self.mode_command_at = time.monotonic()
                     if self.mode == "manual":
                         # The ESP32 mode handler already closes the pump as
                         # its safety action. Do not enqueue a second CLOSE:
