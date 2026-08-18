@@ -10,10 +10,12 @@ esp32_pump_controller/secrets.h
 
 # Runtime output
 *.log
+*.err
 logs/
 *.pid
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # PlatformIO build products
 esp32_pump_controller/.pio/
