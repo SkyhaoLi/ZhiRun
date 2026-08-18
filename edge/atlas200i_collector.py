@@ -473,6 +473,9 @@ class ValveController:
         self.esp_state = {}
         self.esp_rx_buffer = ""
         self.esp_ready = False
+        self.io_lock = threading.RLock()
+        self.poll_stop = threading.Event()
+        self.poll_thread = None
         raw_gpio = config.get("ZHIRUN_VALVE_GPIO", "").strip()
         self.gpio = int(raw_gpio, 0) if raw_gpio else None
         self.active_high = config.get("ZHIRUN_VALVE_ACTIVE_HIGH", "1").strip().lower() not in {"0", "false", "no"}
@@ -619,6 +622,13 @@ class ValveController:
             self.available = False
             self.error = "valve_gpio_unavailable: %s" % exc
             print("[VALVE] %s" % self.error, file=sys.stderr)
+        self.poll_thread = threading.Thread(target=self._poll_loop, name="valve-command-poll", daemon=True)
+        self.poll_thread.start()
+
+    def _poll_loop(self):
+        while not self.poll_stop.is_set():
+            self.poll()
+            self.poll_stop.wait(0.05)
 
     def _write(self, enabled):
         if self.esp_serial is not None:
@@ -645,6 +655,12 @@ class ValveController:
         return state
 
     def _forward_to_esp(self, command, allow_retry=True):
+        # Sensor forwarding and interactive commands share one UART. Serialize
+        # them so the command poll thread can never interleave bytes.
+        with self.io_lock:
+            return self._forward_to_esp_unlocked(command, allow_retry)
+
+    def _forward_to_esp_unlocked(self, command, allow_retry=True):
         if self.esp_serial is None:
             return False
         # CH340 on the Atlas needs a clean DTR/RTS transaction for control
@@ -733,7 +749,7 @@ class ValveController:
             print("[ESP] no state response; reopening UART and retrying command")
             self.esp_serial.close()
             self.esp_serial = PosixSerial(self.esp_port, int_value(self.config, "ZHIRUN_ESP_SERIAL_BAUD"), reset_on_open=True)
-            return self._forward_to_esp(command, allow_retry=False)
+            return self._forward_to_esp_unlocked(command, allow_retry=False)
         return True
 
     def _report(self):
@@ -827,6 +843,9 @@ class ValveController:
             print("[VALVE] command poll failed: %s" % exc, file=sys.stderr)
 
     def close(self):
+        self.poll_stop.set()
+        if self.poll_thread is not None:
+            self.poll_thread.join(timeout=2.0)
         if self.available:
             try:
                 self._write(False)
@@ -984,9 +1003,6 @@ def main():
     try:
         while True:
             try:
-                # Valve commands must remain reachable even when the RS485
-                # adapter is unplugged or a sensor times out.
-                valve.poll()
                 if bus is None:
                     bus = ModbusBus(config)
                     print("[RS485] connected to %s" % config["ZHIRUN_RS485_PORT"])
@@ -1000,10 +1016,6 @@ def main():
                 if args.once:
                     return
                 push(config, payload)
-                # A sensor/RS485 round can take longer than the normal valve
-                # poll interval. Check once immediately after it completes so
-                # a command received during that round is not delayed again.
-                valve.poll()
                 # The first successful sensor push creates the device record
                 # on the server. Report afterward so the UI also receives the
                 # initial closed/fail-safe valve state before any button press.
