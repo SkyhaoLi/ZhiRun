@@ -669,7 +669,7 @@ let valveBusy=false;
 let manualIntent=null;
 let valveRunBaseS=0,valveRunSyncedAt=Date.now();
 function displayedValveRunS(){return valveCfg.valveOn?valveRunBaseS+Math.floor((Date.now()-valveRunSyncedAt)/1000):0;}
-function applyValveCfg(next){const merged=Object.assign({},valveCfg,next),rawRun=merged.runSeconds!=null?merged.runSeconds:merged.runS,reported=Math.max(0,Number(rawRun)||0);if(manualIntent!==null&&merged.mode==='manual'&&!!merged.valveOn!==manualIntent)return;if(manualIntent!==null&&merged.mode==='manual'&&!!merged.valveOn===manualIntent)manualIntent=null;valveCfg=merged;valveRunBaseS=merged.valveOn?reported:0;valveRunSyncedAt=Date.now();}
+function applyValveCfg(next){const merged=Object.assign({},valveCfg,next),edgeRun=Number(merged.runS),espRun=Number(merged.runSeconds),reported=Math.max(0,Number.isFinite(edgeRun)?edgeRun:(Number.isFinite(espRun)?espRun:0));if(manualIntent!==null&&merged.mode==='manual'&&!!merged.valveOn!==manualIntent)return;if(manualIntent!==null&&merged.mode==='manual'&&!!merged.valveOn===manualIntent)manualIntent=null;valveCfg=merged;valveRunBaseS=merged.valveOn?reported:0;valveRunSyncedAt=Date.now();}
 function fmtS(s){s=Math.floor(s||0);const m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x;}
 function syncValveRange(source){
   const onInput=$('vOnTh'),offInput=$('vOffTh'),onRange=$('vOnRange'),offRange=$('vOffRange');
