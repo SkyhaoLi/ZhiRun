@@ -286,6 +286,9 @@ void pollSerialCommands() {
     }
     if (serialLine.indexOf("\"command\":{") >= 0) {
       handleCommand(serialLine);
+      // The Atlas edge process uses this acknowledgement to synchronize the
+      // pump state and its continuous manual runtime counter.
+      reportSerialState();
     } else if (serialLine == "STATUS") {
       reportSerialState();
     }
