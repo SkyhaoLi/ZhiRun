@@ -752,6 +752,11 @@ async function setMode(m){
   try{const r=await fetchTO('/valve/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:m})},8000);
     const d=await r.json();
     if(!d.ok){$('vOut').textContent=valveMessage(d.message,'模式切换失败');return false;}
+    // The relay only returns a queued acknowledgement. Reflect the requested
+    // mode immediately, while waitValveState below reconciles it with ESP32.
+    valveCfg.mode=m;
+    if(m==='manual')valveCfg.valveOn=false;
+    renderValve();
     $('vOut').textContent='指令已发送，等待设备确认…';
     const confirmed=await waitValveState(s=>s.mode===m);
     $('vOut').textContent=confirmed?(m==='manual'?'已切换到手动模式':'已切换到自动模式'):'设备未在规定时间内确认模式切换';
