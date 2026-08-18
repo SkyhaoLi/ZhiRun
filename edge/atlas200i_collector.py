@@ -76,9 +76,7 @@ DEFAULTS = {
     "ZHIRUN_VALVE_GPIO": "79",
     "ZHIRUN_VALVE_ACTIVE_HIGH": "1",
     "ZHIRUN_VALVE_MAX_RUN_S": "180",
-    # Valve commands are interactive controls; keep their network poll well
-    # below the sensor collection cadence so a button press feels immediate.
-    "ZHIRUN_VALVE_POLL_S": "0.1",
+    "ZHIRUN_VALVE_POLL_S": "1",
     # A USB-connected ESP32 receives valve commands over this serial device.
     # Empty preserves the legacy Atlas GPIO controller.
     "ZHIRUN_ESP_SERIAL_PORT": "",
@@ -477,7 +475,7 @@ class ValveController:
         self.gpio = int(raw_gpio, 0) if raw_gpio else None
         self.active_high = config.get("ZHIRUN_VALVE_ACTIVE_HIGH", "1").strip().lower() not in {"0", "false", "no"}
         self.max_run_s = max(1.0, float_value(config, "ZHIRUN_VALVE_MAX_RUN_S"))
-        self.poll_s = max(0.05, float_value(config, "ZHIRUN_VALVE_POLL_S"))
+        self.poll_s = max(0.2, float_value(config, "ZHIRUN_VALVE_POLL_S"))
         self.server = config["ZHIRUN_ATLAS_SERVER"].rstrip("/")
         self.device_id = quote(config["ZHIRUN_ATLAS_DEVICE_ID"], safe="")
         self.token = config["ZHIRUN_ATLAS_TOKEN"]
@@ -1000,10 +998,6 @@ def main():
                 if args.once:
                     return
                 push(config, payload)
-                # A sensor/RS485 round can take longer than the normal valve
-                # poll interval. Check once immediately after it completes so
-                # a command received during that round is not delayed again.
-                valve.poll()
                 # The first successful sensor push creates the device record
                 # on the server. Report afterward so the UI also receives the
                 # initial closed/fail-safe valve state before any button press.
