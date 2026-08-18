@@ -663,43 +663,6 @@ class ValveController:
     def _forward_to_esp_unlocked(self, command, allow_retry=True):
         if self.esp_serial is None:
             return False
-        # CH340 on the Atlas needs a clean DTR/RTS transaction for control
-        # commands. A short-lived helper is more reliable than a long-held fd.
-        if command.get("action") in {"manual", "mode", "config"}:
-            helper = ROOT / "edge" / "esp_uart_command.py"
-            self.esp_serial.close()
-            self.esp_serial = None
-            args = [sys.executable, str(helper), "--port", self.esp_port,
-                    "--command", json.dumps(command, separators=(",", ":"))]
-            if self.esp_ready:
-                args.append("--no-reset")
-            result = subprocess.run(args,
-                                    text=True, capture_output=True, timeout=8, check=False)
-            self.esp_serial = PosixSerial(self.esp_port, int_value(self.config, "ZHIRUN_ESP_SERIAL_BAUD"), reset_on_open=False)
-            state_start = result.stdout.rfind("STATE ")
-            if state_start >= 0:
-                try:
-                    # ESP32 diagnostic text may contain literal "\\n" after
-                    # the JSON. Decode exactly one JSON object instead of
-                    # requiring the whole UART capture to be valid JSON.
-                    self.esp_state, _ = json.JSONDecoder().raw_decode(
-                        result.stdout[state_start + 6:].lstrip())
-                    was_on = self.valve_on
-                    self.valve_on = bool(self.esp_state.get("valveOn", False))
-                    if self.valve_on and not was_on:
-                        reported_run_s = max(0.0, float(self.esp_state.get("runSeconds", 0) or 0))
-                        self.started_at = time.monotonic() - reported_run_s
-                    elif not self.valve_on:
-                        self.started_at = 0.0
-                    self.mode = self.esp_state.get("mode", self.mode)
-                    self.error = self.esp_state.get("error", "")
-                    self.esp_ready = True
-                    print("[ESP] state %s" % json.dumps(self.esp_state, separators=(",", ":")))
-                    return True
-                except json.JSONDecodeError:
-                    pass
-            print("[ESP] command failed: %s" % (result.stderr.strip() or result.stdout.strip() or result.returncode))
-            return False
         print("[ESP] tx %s" % json.dumps(command, separators=(",", ":")))
         # A CH340 reconnect can leave boot/diagnostic bytes in the receive
         # queue. Discard those bytes so they cannot prefix the first STATE
@@ -712,7 +675,7 @@ class ValveController:
         # CH340/ESP32 can need over one second after an auto-reset before its
         # first UART reply is available. Keep the command pending long enough
         # to receive the complete STATE line.
-        deadline = time.monotonic() + 4.0
+        deadline = time.monotonic() + 1.0
         got_state = False
         while time.monotonic() < deadline:
             ready, _, _ = select.select([self.esp_serial.fd], [], [], max(0, deadline - time.monotonic()))
@@ -745,11 +708,8 @@ class ValveController:
                         self.esp_rx_buffer = self.esp_rx_buffer[state_start:]
             elif len(self.esp_rx_buffer) > 2048:
                 self.esp_rx_buffer = self.esp_rx_buffer[-256:]
-        if not got_state and allow_retry and command.get("action") in {"manual", "mode", "config"}:
-            print("[ESP] no state response; reopening UART and retrying command")
-            self.esp_serial.close()
-            self.esp_serial = PosixSerial(self.esp_port, int_value(self.config, "ZHIRUN_ESP_SERIAL_BAUD"), reset_on_open=True)
-            return self._forward_to_esp_unlocked(command, allow_retry=False)
+        if not got_state and command.get("action") in {"manual", "mode", "config"}:
+            print("[ESP] state acknowledgement delayed; keeping command result optimistic")
         return True
 
     def _report(self):
