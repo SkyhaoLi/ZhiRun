@@ -129,7 +129,14 @@ def signed16(value):
 def network_snapshot(server_url):
     """Return the active routed interface without changing its configuration."""
     result = {"networkType": "ethernet", "networkInterface": None,
-              "networkIp": None, "networkGateway": None, "networkConnected": False}
+              "networkIp": None, "networkGateway": None, "networkConnected": False,
+              "_uptimeS": None}
+    try:
+        # Linux reports the Atlas system uptime in seconds. Keep this separate
+        # from sensor timestamps so the dashboard can show device runtime.
+        result["_uptimeS"] = int(float(Path("/proc/uptime").read_text(encoding="ascii").split()[0]))
+    except (OSError, ValueError, IndexError):
+        pass
     try:
         for line in Path("/proc/net/route").read_text(encoding="ascii").splitlines()[1:]:
             fields = line.split()
