@@ -286,7 +286,6 @@ void pollSerialCommands() {
     }
     if (serialLine.indexOf("\"command\":{") >= 0) {
       handleCommand(serialLine);
-      reportSerialState();
     } else if (serialLine == "STATUS") {
       reportSerialState();
     }

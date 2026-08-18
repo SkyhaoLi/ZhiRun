@@ -740,10 +740,6 @@ class ValveController:
 
     def _apply(self, command):
         action = command.get("action") if isinstance(command, dict) else None
-        if action in {"manual", "mode", "config"}:
-            print("[VALVE] apply id=%s action=%s params=%s" %
-                  (command.get("id", "?"), action,
-                   json.dumps(command, separators=(",", ":"))))
         if self.esp_serial is not None and action in {"manual", "mode", "config"}:
             if self._forward_to_esp(command):
                 # Keep the Atlas state coherent even when the ESP32 response

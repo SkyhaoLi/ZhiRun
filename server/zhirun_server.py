@@ -9,7 +9,6 @@ import json
 import os
 import sys
 import threading
-import logging
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
@@ -98,7 +97,6 @@ _valve_commands_by_device = {}
 _network_attempt_by_device = {}
 _next_valve_command_id = 1
 _weather_cache = {"key": None, "updated_at": 0, "data": None}
-logging.basicConfig(level=logging.INFO, format="[VALVE-SERVER] %(message)s")
 
 # 落盘节流: 不再每帧 push 都同步写盘 (会把所有读请求堵在锁上)。
 # 改为标记脏 + 后台线程每 _SAVE_INTERVAL 秒落一次盘, 重启前再强制 flush。
@@ -294,8 +292,6 @@ def queue_valve_command(device_id, action, params):
     command.update(params)
     _next_valve_command_id += 1
     _valve_commands_by_device.setdefault(device_id, []).append(command)
-    if action in {"manual", "mode", "config"}:
-        logging.info("enqueue id=%s device=%s action=%s params=%s", command["id"], device_id, action, params)
     return command
 
 
