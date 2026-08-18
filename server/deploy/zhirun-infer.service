@@ -1,0 +1,15 @@
+[Unit]
+Description=ZhiRun Fertigation Inference Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/zhirun-infer
+ExecStart=/usr/bin/python3 %h/zhirun-infer/infer_server.py
+Restart=always
+RestartSec=3
+Environment=ZHIRUN_INFER_PORT=10001
+Environment=ZHIRUN_FERTIGATION_MODEL_DIR=%h/zhirun-infer/model
+
+[Install]
+WantedBy=default.target

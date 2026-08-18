@@ -1,0 +1,9 @@
+{
+  "source": "NASA POWER Daily API",
+  "url": "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M%2CT2M_MAX%2CT2M_MIN%2CRH2M%2CWS2M%2CPRECTOTCORR%2CALLSKY_SFC_SW_DWN&community=AG&longitude=111.75&latitude=40.84&start=20150101&end=20251231&format=JSON",
+  "latitude": 40.84,
+  "longitude": 111.75,
+  "start": "20150101",
+  "end": "20251231",
+  "rows": 4018
+}

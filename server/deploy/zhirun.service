@@ -1,0 +1,15 @@
+[Unit]
+Description=ZhiRun Environment Monitor Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+ExecStart=/usr/bin/python3 %h/zhirun_server.py
+Restart=always
+RestartSec=3
+Environment=ZHIRUN_PUSH_TOKEN=__TOKEN__
+Environment=ZHIRUN_PORT=__PORT__
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,36 @@
+# Local secrets and deployment configuration
+.env
+.env.*
+!.env.atlas.example
+edge/*-remote.env
+esp32_pump_controller/secrets.h
+*.secret
+*.key
+*.pem
+
+# Runtime output
+*.log
+logs/
+*.pid
+__pycache__/
+*.py[cod]
+
+# PlatformIO build products
+esp32_pump_controller/.pio/
+esp32_pump_controller/.venv/
+
+# Device dumps and generated firmware backups
+esp32_backups/
+*.bin
+*.elf
+*.map
+
+# Generated datasets/model artifacts
+灌溉模型/灌溉模型/data/processed/
+灌溉模型/灌溉模型/models/
+
+# Editor and OS metadata
+.vscode/
+.idea/
+Thumbs.db
+*.swp

@@ -1,0 +1,759 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""智润环境监测服务。
+
+服务端保持纯标准库实现, 接收 Atlas 的 /push 上报, 对外提供
+实时数据页 /data、字段布局 /schema、设备状态 /config 与历史缓存。
+"""
+import json
+import os
+import sys
+import threading
+import logging
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, unquote, urlparse
+from urllib.request import Request, urlopen
+
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(ROOT)
+
+
+def load_local_env():
+    env_path = os.path.join(PROJECT_ROOT, ".env")
+    if not os.path.exists(env_path):
+        return
+    with open(env_path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+load_local_env()
+
+PORT = int(os.environ.get("ZHIRUN_PORT", "10000"))
+PUSH_TOKEN = os.environ.get("ZHIRUN_PUSH_TOKEN", "").strip()
+STATE_FILE = os.environ.get("ZHIRUN_STATE_FILE", os.path.join(ROOT, ".zhirun_state.json"))
+REALTIME_SOURCE = os.environ.get("ZHIRUN_REALTIME_SOURCE", "").strip().lower()
+REALTIME_DEVICE_ID = os.environ.get("ZHIRUN_REALTIME_DEVICE_ID", "").strip()
+WEATHER_FALLBACK_LATITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LATITUDE", "40.82"))
+WEATHER_FALLBACK_LONGITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LONGITUDE", "111.65"))
+FERTIGATION_URL = os.environ.get("ZHIRUN_FERTIGATION_URL", "http://127.0.0.1:10001").rstrip("/")
+HISTORY_LIMIT = 720
+LEGACY_DEVICE_ID = "legacy-default"
+
+# ---- 固定字段布局 ------------------------------------------------------------
+# 本设备是环境监测设备, 字段固定为下面 12 项, 不随设备上报动态增减:
+# 无论设备某一帧发没发某个键, 这 12 格永远显示 (缺值显示 "--", 有值即实时更新)。
+# group: headline=顶部大数字, sensor=传感器网格。digits=小数位。
+FIELDS_LIST = [
+    ("airTemp",   "空气温度",  "°C",      "headline", 1),
+    ("airHum",    "空气湿度",  "%RH",     "headline", 1),
+    ("co2",       "CO₂浓度",   "ppm",     "headline", 0),
+    ("lux",       "光照强度",  "lux",     "headline", 0),
+    ("soilMoist", "土壤水分",  "%",       "sensor",   1),
+    ("soilTemp",  "土壤温度",  "°C",      "sensor",   1),
+    ("soilPH",    "土壤 PH",   "",        "sensor",   2),
+    ("windSpeed", "瞬时风速",  "m/s",     "sensor",   1),
+    ("n",         "氮 N",      "mg/kg",   "sensor",   0),
+    ("p",         "磷 P",      "mg/kg",   "sensor",   0),
+    ("k",         "钾 K",      "mg/kg",   "sensor",   0),
+    ("rainMm",    "雨量",      "mm/24h",  "sensor",   1),
+    ("latitude",  "北斗纬度",  "°",       "sensor",   6),
+    ("longitude", "北斗经度",  "°",       "sensor",   6),
+    ("gpsSatellites", "北斗卫星数", "颗", "sensor",   0),
+    ("gpsSpeed",  "北斗速度",  "km/h",    "sensor",   1),
+    ("gpsConnected", "北斗通信", "",       "sensor",   0),
+    ("gpsFixQuality", "北斗定位质量", "", "sensor",   0),
+]
+# 固定 schema: 每台设备都用同一套 12 字段布局, 与设备上报的 fields 无关
+FIXED_FIELDS = [
+    {"key": k, "label": lab, "unit": u, "group": g, "digits": d}
+    for (k, lab, u, g, d) in FIELDS_LIST
+]
+FIXED_KEYS = [f["key"] for f in FIXED_FIELDS]
+
+# 纯内部字段, 不参与展示 (aiAge 新鲜度; rainTips 翻斗原始计数, 已由 rainMm 换算)
+IGNORE_KEYS = {"aiAge", "aiMemTotal", "rainTips"}
+
+
+def resolve_fields(device, latest):
+    """返回固定的 12 项环境字段布局。
+
+    不再依赖设备上报的 fields, 也不再因某帧缺失而增删字段——布局恒定,
+    每格的数值由 /data 提供 (有值实时刷新, 无值显示 --)。
+    """
+    return [dict(f) for f in FIXED_FIELDS]
+
+_lock = threading.RLock()
+_devices = {}
+_latest_by_device = {}
+_history_by_device = {}
+_valve_by_device = {}
+_valve_commands_by_device = {}
+_network_attempt_by_device = {}
+_next_valve_command_id = 1
+_weather_cache = {"key": None, "updated_at": 0, "data": None}
+logging.basicConfig(level=logging.INFO, format="[VALVE-SERVER] %(message)s")
+
+# 落盘节流: 不再每帧 push 都同步写盘 (会把所有读请求堵在锁上)。
+# 改为标记脏 + 后台线程每 _SAVE_INTERVAL 秒落一次盘, 重启前再强制 flush。
+_save_dirty = False
+_save_interval = 5.0
+
+
+def now():
+    return int(time.time())
+
+
+def json_bytes(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def safe_device_id(value):
+    value = str(value or "").strip()
+    if not value:
+        return LEGACY_DEVICE_ID
+    return value[:96]
+
+
+def load_state():
+    if not os.path.exists(STATE_FILE):
+        return
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            state = json.load(f)
+        _devices.update(state.get("devices", {}))
+        _latest_by_device.update(state.get("latest", {}))
+        _history_by_device.update(state.get("history", {}))
+    except Exception as exc:
+        print("状态文件读取失败, 将从空状态启动:", exc, file=sys.stderr)
+
+
+def mark_dirty():
+    """标记状态已变更, 由后台线程节流落盘, 避免每帧同步写盘阻塞读请求。"""
+    global _save_dirty
+    _save_dirty = True
+
+
+def save_state(force=False):
+    """实际落盘。force=True 时无视脏标记立即写 (用于关停前 flush)。"""
+    global _save_dirty
+    if not force and not _save_dirty:
+        return
+    with _lock:
+        state = {
+            "devices": _devices,
+            "latest": _latest_by_device,
+            "history": _history_by_device,
+        }
+        _save_dirty = False
+    tmp = STATE_FILE + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, STATE_FILE)
+    except Exception as exc:
+        print("状态文件写入失败:", exc, file=sys.stderr)
+        _save_dirty = True  # 写失败, 留给下一轮重试
+
+
+def _save_loop():
+    while True:
+        time.sleep(_save_interval)
+        try:
+            save_state()
+        except Exception as exc:
+            print("后台落盘异常:", exc, file=sys.stderr)
+
+
+def latest_age(record):
+    timestamp = record.get("_ts", 0) if isinstance(record, dict) else 0
+    return max(0, now() - int(timestamp)) if timestamp else 999999
+
+
+def weather_forecast(latitude, longitude):
+    """Fetch a short Open-Meteo forecast, caching one location for 10 minutes."""
+    latitude = float(latitude)
+    longitude = float(longitude)
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        raise ValueError("invalid_coordinates")
+
+    cache_key = (round(latitude, 3), round(longitude, 3))
+    with _lock:
+        if (_weather_cache["key"] == cache_key
+                and now() - _weather_cache["updated_at"] < 600
+                and _weather_cache["data"]):
+            return dict(_weather_cache["data"])
+
+    query = (
+        "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
+        "precipitation,weather_code,wind_speed_10m"
+        "&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m"
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
+        "precipitation_probability_max,precipitation_sum,wind_speed_10m_max,"
+        "sunrise,sunset&timezone=auto&forecast_days=7"
+    ).format(lat=latitude, lon=longitude)
+    request = Request(query, headers={"User-Agent": "ZhiRun-WeatherPanel/1.0"})
+    with urlopen(request, timeout=6) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    result = {
+        "ok": True,
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": payload.get("current", {}),
+        "hourly": payload.get("hourly", {}),
+        "daily": payload.get("daily", {}),
+        "timezone": payload.get("timezone", ""),
+        "updated_at": now(),
+    }
+    with _lock:
+        _weather_cache.update({"key": cache_key, "updated_at": now(), "data": result})
+    return result
+
+
+DEVICE_ONLINE_TIMEOUT = 45
+
+
+def device_online(device):
+    return latest_age(device) <= DEVICE_ONLINE_TIMEOUT
+
+
+def current_device_id(requested_device_id=None):
+    """Return the device selected for the public realtime page."""
+    if requested_device_id:
+        return safe_device_id(requested_device_id)
+    if REALTIME_DEVICE_ID:
+        return safe_device_id(REALTIME_DEVICE_ID)
+    # Atlas 200I DK A2 reports directly to /push. The public page selects Atlas
+    # unless a specific source is explicitly configured.
+    allowed_sources = {REALTIME_SOURCE} if REALTIME_SOURCE else {"atlas"}
+    candidates = [
+        device_id for device_id, device in _devices.items()
+        if device.get("source") in allowed_sources
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
+
+
+def current_valve_device_id():
+    """Prefer the Atlas USB relay when it is the configured valve controller."""
+    candidates = [
+        device_id for device_id, device in _devices.items()
+        if "valve_control" in (device.get("capabilities") or [])
+        and device_online(_latest_by_device.get(device_id, {}))
+    ]
+    if candidates:
+        atlas_candidates = [
+            device_id for device_id in candidates
+            if _devices.get(device_id, {}).get("source") == "atlas"
+        ]
+        if atlas_candidates:
+            return max(atlas_candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
+        return max(candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
+    return current_device_id()
+
+
+def valve_snapshot(device_id):
+    state = dict(_valve_by_device.get(device_id, {}))
+    state["device_id"] = device_id
+    state["online"] = device_online(_latest_by_device.get(device_id, {}))
+    attempt = _network_attempt_by_device.get(device_id)
+    if attempt:
+        elapsed = now() - attempt["started_at"]
+        connected_ssid = state.get("wifiSsid") if state.get("wifiConnected") else ""
+        if connected_ssid == attempt["ssid"]:
+            state["networkAttempt"] = {"status": "success", "ssid": attempt["ssid"]}
+            _network_attempt_by_device.pop(device_id, None)
+        elif elapsed >= 45:
+            state["networkAttempt"] = {"status": "failed", "ssid": attempt["ssid"]}
+        else:
+            state["networkAttempt"] = {"status": "connecting", "ssid": attempt["ssid"]}
+    return state
+
+
+def queue_valve_command(device_id, action, params):
+    global _next_valve_command_id
+    if not device_id or not device_online(_latest_by_device.get(device_id, {})):
+        return None
+    # Manual controls force manual ownership. Drop stale control commands so a
+    # delayed close/mode/config cannot override the latest manual intent.
+    if action == "manual":
+        pending = _valve_commands_by_device.get(device_id, [])
+        _valve_commands_by_device[device_id] = [
+            item for item in pending if item.get("action") not in {"manual", "mode", "config"}
+        ]
+    command = {"id": str(_next_valve_command_id), "action": action}
+    command.update(params)
+    _next_valve_command_id += 1
+    _valve_commands_by_device.setdefault(device_id, []).append(command)
+    if action in {"manual", "mode", "config"}:
+        logging.info("enqueue id=%s device=%s action=%s params=%s", command["id"], device_id, action, params)
+    return command
+
+
+def device_snapshot(device_id):
+    device = dict(_devices.get(device_id, {}))
+    latest = dict(_latest_by_device.get(device_id, {}))
+    age = latest_age(latest)
+    device["device_id"] = device_id
+    device.pop("device_token", None)
+    device["online"] = age <= DEVICE_ONLINE_TIMEOUT
+    device["status"] = "online_local" if age <= DEVICE_ONLINE_TIMEOUT else "offline"
+    device["last_seen"] = latest.get("_ts", device.get("last_seen", 0))
+    device["age"] = age
+    device["latest"] = latest
+    # 解析出该设备当前应渲染的字段 (设备自报 > 字典 > 键名), 前端照单渲染
+    device["fields"] = resolve_fields(device, latest)
+    return device
+
+
+def strip_auth(obj):
+    value = dict(obj or {})
+    value.pop("token", None)
+    value.pop("device_token", None)
+    value.pop("setup_code", None)
+    return value
+
+
+def authorized(obj, device_id=None):
+    if not PUSH_TOKEN:
+        return True
+    supplied = str((obj or {}).get("token") or (obj or {}).get("device_token") or "")
+    if supplied and supplied == PUSH_TOKEN:
+        return True
+    device = _devices.get(device_id or safe_device_id((obj or {}).get("device_id")), {})
+    stored = device.get("device_token")
+    return bool(stored and supplied == stored)
+
+
+def record_device(device_id, metadata, payload, source="local"):
+    timestamp = now()
+    clean_meta = strip_auth(metadata)
+    device_token = (metadata or {}).get("device_token")
+    with _lock:
+        existing = dict(_devices.get(device_id, {}))
+        existing.update({
+            key: value for key, value in clean_meta.items()
+            if key in {"device_name", "model", "firmware_version", "fw", "ip", "rssi", "network_type",
+                       "capabilities", "server_url", "fields"} and value is not None
+        })
+        if device_token:
+            existing["device_token"] = device_token
+        existing["device_id"] = device_id
+        existing["last_seen"] = timestamp
+        existing["source"] = source
+        _devices[device_id] = existing
+
+        data = dict(payload or {})
+        # 实时接口必须反映“这一帧”实际收到的内容。旧实现会把缺失/null 字段
+        # 无限沿用上一帧，传感器暂时无新读数时页面仍显示旧值，造成实时刷新
+        # 已卡死的假象。固定网格由 /schema 保持；缺值交给前端显示为 --。
+        previous = _latest_by_device.get(device_id, {})
+        data["_frameSeq"] = int(previous.get("_frameSeq", 0)) + 1
+        data["_device_id"] = device_id
+        data["_ts"] = timestamp
+        _latest_by_device[device_id] = data
+        history = _history_by_device.setdefault(device_id, [])
+        history.append(data)
+        if len(history) > HISTORY_LIMIT:
+            del history[:-HISTORY_LIMIT]
+        mark_dirty()  # 节流落盘: 不再每帧同步写盘, 由后台线程统一 flush
+
+
+def normalize_push(obj, path_device_id=None):
+    obj = dict(obj or {})
+    envelope = obj.get("payload") if isinstance(obj.get("payload"), dict) else None
+    payload = dict(envelope or obj)
+    device_id = safe_device_id(obj.get("device_id") or payload.pop("device_id", None) or path_device_id)
+    # 旧固件把身份/鉴权/元数据平铺在顶层(无 payload 包裹); 这些不是传感器读数,
+    # 从读数里剔除, 以免被当作可视字段渲染出来。
+    for meta_key in ("token", "device_token", "device_id", "device_name", "model",
+                     "firmware_version", "fw", "ip", "rssi", "capabilities",
+                     "server_url", "fields", "payload", "data_source"):
+        payload.pop(meta_key, None)
+    metadata = {
+        "device_id": device_id,
+        "device_name": obj.get("device_name") or payload.pop("device_name", None),
+        "model": obj.get("model"),
+        "firmware_version": obj.get("firmware_version") or obj.get("fw"),
+        "fw": obj.get("fw"),
+        "ip": obj.get("ip"),
+        "network_type": obj.get("network_type"),
+        "rssi": obj.get("rssi"),
+        "capabilities": obj.get("capabilities"),
+        "server_url": obj.get("server_url"),
+        "device_token": obj.get("device_token"),
+        "fields": obj.get("fields") if isinstance(obj.get("fields"), list) else None,
+    }
+    return device_id, metadata, payload
+
+
+load_state()
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *_args):
+        pass
+
+    def send_json(self, code, value):
+        body = json_bytes(value)
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_text(self, code, text):
+        body = text.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def read_json(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 1024 * 1024:
+                return None
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except Exception:
+            return None
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def proxy_fertigation(self, endpoint, payload=None):
+        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = Request(FERTIGATION_URL + endpoint, data=data,
+                          headers={"Content-Type": "application/json"} if data else {},
+                          method="POST" if data else "GET")
+        try:
+            with urlopen(request, timeout=20) as response:
+                self.send_json(response.status, json.loads(response.read().decode("utf-8")))
+        except Exception as exc:
+            self.send_json(502, {"ok": False, "error": "fertigation_service_unavailable", "message": str(exc)})
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        query = parse_qs(parsed.query)
+
+        if path in {"/", "/index.html"}:
+            try:
+                with open(os.path.join(ROOT, "index.html"), "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            except OSError:
+                self.send_text(404, "index.html 未找到")
+            return
+
+        if path == "/data":
+            requested_device_id = query.get("device_id", [None])[0]
+            with _lock:
+                device_id = current_device_id(requested_device_id)
+                if device_id:
+                    data = dict(_latest_by_device.get(device_id, {}))
+                    data["_source"] = _devices.get(device_id, {}).get("source", "unknown")
+                else:
+                    data = {"_ts": 0, "_age": 999999}
+            data["_age"] = latest_age(data)
+            self.send_json(200, data)
+            return
+
+        if path == "/weather":
+            requested_device_id = query.get("device_id", [None])[0]
+            with _lock:
+                device_id = current_device_id(requested_device_id)
+                latest = dict(_latest_by_device.get(device_id, {})) if device_id else {}
+            latitude = latest.get("latitude")
+            longitude = latest.get("longitude")
+            location_source = "gnss"
+            # GNSS 坐标只在获得有效定位的帧中上报。实时接口不应沿用旧值，
+            # 但天气预报可以安全使用该设备最近一次有效坐标。
+            if latitude is None or longitude is None:
+                with _lock:
+                    history = _history_by_device.get(device_id, []) if device_id else []
+                    for item in reversed(history):
+                        if item.get("latitude") is not None and item.get("longitude") is not None:
+                            latitude = item["latitude"]
+                            longitude = item["longitude"]
+                            location_source = "gnss_history"
+                            break
+            if latitude is None or longitude is None:
+                latitude = WEATHER_FALLBACK_LATITUDE
+                longitude = WEATHER_FALLBACK_LONGITUDE
+                location_source = "fallback"
+            try:
+                forecast = weather_forecast(latitude, longitude)
+                forecast["location_source"] = location_source
+                self.send_json(200, forecast)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                self.send_json(502, {"ok": False, "reason": "weather_unavailable", "message": str(exc)})
+            return
+
+        # 板载布局页 (frontend 版) 需要的 schema/config: 复用最新上报设备的字段定义。
+        # 优先按 device_id 查询, 否则取最近上报的那台设备。
+        if path in {"/schema", "/config"}:
+            requested_device_id = query.get("device_id", [None])[0]
+            with _lock:
+                device_id = current_device_id(requested_device_id)
+                if path == "/schema":
+                    if device_id is None:
+                        self.send_json(200, [])
+                        return
+                    device = _devices.get(device_id, {})
+                    latest = _latest_by_device.get(device_id, {})
+                    # 只给板载页展示环境/传感器字段, 隐藏 ai 组
+                    fields = [f for f in resolve_fields(device, latest) if f.get("group") != "ai"]
+                    self.send_json(200, fields)
+                    return
+                # /config: 设备身份/在线状态, 给顶栏徽章用
+                if device_id is None:
+                    self.send_json(200, {"mode": "offline", "device_name": "环境实时监测"})
+                    return
+                device = _devices.get(device_id, {})
+                latest = _latest_by_device.get(device_id, {})
+                online = latest_age(latest) <= 15
+                self.send_json(200, {
+                    "mode": "normal" if online else "offline",
+                    "device_id": device_id,
+                    "device_name": device.get("device_name") or "环境实时监测",
+                    "ssid": device.get("ssid"),
+                    "ip": latest.get("networkIp") or device.get("ip"),
+                    "network_type": latest.get("networkType") or device.get("network_type"),
+                    "network_interface": latest.get("networkInterface"),
+                    "network_gateway": latest.get("networkGateway"),
+                    "network_connected": bool(latest.get("networkConnected")),
+                    "server": device.get("server_url"),
+                })
+                return
+
+        if path == "/valve/config":
+            with _lock:
+                device_id = current_valve_device_id()
+                if not device_id:
+                    self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                    return
+                self.send_json(200, valve_snapshot(device_id))
+            return
+
+        if path == "/fertigation/health":
+            self.proxy_fertigation("/health")
+            return
+
+        if path == "/network/scan":
+            with _lock:
+                device_id = current_device_id()
+                state = dict(_valve_by_device.get(device_id, {})) if device_id else {}
+                networks = state.get("wifiNetworks", [])
+                scanned_at = state.get("wifiScannedAt", 0)
+            self.send_json(200, {"ok": True, "networks": networks if isinstance(networks, list) else [], "scanned_at": scanned_at})
+            return
+
+        if path.startswith("/api/devices/") and path.endswith("/valve/commands/next"):
+            device_id = unquote(path.split("/")[3])
+            if not authorized({"token": query.get("token", [""])[0]}, device_id):
+                self.send_json(403, {"error": "bad_token"})
+                return
+            with _lock:
+                commands = _valve_commands_by_device.get(device_id, [])
+                command = commands.pop(0) if commands else None
+            self.send_json(200, {"command": command})
+            return
+
+        if path == "/api/devices":
+            with _lock:
+                devices = [device_snapshot(device_id) for device_id in sorted(_devices)]
+            devices.sort(key=lambda item: item.get("last_seen", 0), reverse=True)
+            self.send_json(200, {"devices": devices, "count": len(devices), "mode": "local"})
+            return
+
+        if path.startswith("/api/devices/"):
+            parts = path.split("/")
+            if len(parts) >= 4:
+                device_id = unquote(parts[3])
+                suffix = "/".join(parts[4:])
+                with _lock:
+                    if device_id not in _devices and device_id not in _latest_by_device:
+                        self.send_json(404, {"error": "device_not_found"})
+                        return
+                    if suffix == "data/latest":
+                        data = dict(_latest_by_device.get(device_id, {}))
+                        data["_age"] = latest_age(data)
+                        self.send_json(200, data)
+                        return
+                    if suffix == "data/history":
+                        try:
+                            requested = int(query.get("limit", [120])[0])
+                        except ValueError:
+                            requested = 120
+                        limit = min(max(requested, 1), HISTORY_LIMIT)
+                        history = _history_by_device.get(device_id, [])[-limit:]
+                        self.send_json(200, {"device_id": device_id, "items": history})
+                        return
+                    if suffix == "":
+                        self.send_json(200, device_snapshot(device_id))
+                        return
+
+        self.send_text(404, "not found")
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        obj = self.read_json()
+        if obj is None:
+            self.send_json(400, {"error": "bad_json"})
+            return
+
+        if path == "/fertigation/predict":
+            self.proxy_fertigation("/predict", obj)
+            return
+
+        if path == "/push":
+            if not authorized(obj):
+                self.send_text(403, "bad token")
+                return
+            device_id, metadata, payload = normalize_push(obj)
+            source = str(obj.get("data_source") or "").strip().lower()
+            if source not in {"serial", "device", "atlas"}:
+                source = "legacy" if device_id == LEGACY_DEVICE_ID else "local"
+            record_device(device_id, metadata, payload, source=source)
+            self.send_json(200, {"ok": True, "device_id": device_id})
+            return
+
+        if path in {"/valve/config", "/valve/mode", "/valve/manual"}:
+            with _lock:
+                device_id = current_valve_device_id()
+                if path == "/valve/config":
+                    action = "config"
+                    params = {key: obj[key] for key in ("on_th", "off_th", "min_run_s", "max_run_s", "active_high") if key in obj}
+                elif path == "/valve/mode":
+                    action, params = "mode", {"mode": obj.get("mode")}
+                else:
+                    action, params = "manual", {"manual_action": obj.get("action")}
+                command = queue_valve_command(device_id, action, params)
+            if not command:
+                self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                return
+            self.send_json(202, {"ok": True, "queued": True, "command_id": command["id"], "message": "command_queued"})
+            return
+
+        # 远程配网：密码只保存在内存中的待执行命令里；设备取走命令后即从队列删除，
+        # 不写状态文件、不返回给网页、不打印日志。
+        if path == "/network/config":
+            ssid = obj.get("ssid")
+            password = obj.get("password")
+            if not isinstance(ssid, str) or not ssid.strip() or len(ssid) > 64:
+                self.send_json(400, {"ok": False, "message": "bad_ssid"})
+                return
+            if not isinstance(password, str) or len(password) > 128:
+                self.send_json(400, {"ok": False, "message": "bad_password"})
+                return
+            with _lock:
+                device_id = current_device_id()
+                params = {"ssid": ssid.strip(), "password": password}
+                name = obj.get("device_name")
+                if isinstance(name, str) and name.strip():
+                    params["device_name"] = name.strip()[:96]
+                command = queue_valve_command(device_id, "network_config", params)
+                if command:
+                    # 只记录目标网络名和开始时间，密码始终仅存在待执行命令内存中。
+                    _network_attempt_by_device[device_id] = {"ssid": ssid.strip(), "started_at": now()}
+            if not command:
+                self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                return
+            self.send_json(202, {"ok": True, "queued": True, "command_id": command["id"], "message": "network_config_queued"})
+            return
+
+        if path == "/network/scan":
+            with _lock:
+                device_id = current_device_id()
+                command = queue_valve_command(device_id, "network_scan", {})
+            if not command:
+                self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                return
+            self.send_json(202, {"ok": True, "queued": True, "command_id": command["id"], "message": "network_scan_queued"})
+            return
+
+        if path.startswith("/api/devices/") and path.endswith("/valve/result"):
+            device_id = unquote(path.split("/")[3])
+            if not authorized(obj, device_id):
+                self.send_json(403, {"error": "bad_token"})
+                return
+            state = obj.get("state")
+            if not isinstance(state, dict):
+                self.send_json(400, {"error": "missing_state"})
+                return
+            with _lock:
+                _valve_by_device[device_id] = state
+            self.send_json(200, {"ok": True})
+            return
+
+        if path.startswith("/api/devices/") and path.endswith("/push"):
+            device_id = unquote(path.split("/")[3])
+            if not authorized(obj, device_id):
+                self.send_json(403, {"error": "bad_token"})
+                return
+            actual_id, metadata, payload = normalize_push(obj, device_id)
+            if actual_id != device_id:
+                self.send_json(400, {"error": "device_id_mismatch"})
+                return
+            source = str(obj.get("data_source") or "").strip().lower()
+            record_device(device_id, metadata, payload, source=source if source in {"serial", "device"} else "local")
+            self.send_json(200, {"ok": True, "device_id": device_id})
+            return
+
+        self.send_text(404, "not found")
+
+    def do_PATCH(self):
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+        if not path.startswith("/api/devices/"):
+            self.send_text(404, "not found")
+            return
+        device_id = unquote(path.split("/")[3])
+        obj = self.read_json()
+        if obj is None:
+            self.send_json(400, {"error": "bad_json"})
+            return
+        with _lock:
+            if device_id not in _devices:
+                self.send_json(404, {"error": "device_not_found"})
+                return
+            for key in ("device_name", "server_url", "capabilities"):
+                if key in obj:
+                    _devices[device_id][key] = obj[key]
+            save_state()
+            self.send_json(200, device_snapshot(device_id))
+
+
+if __name__ == "__main__":
+    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"智润服务已启动, 监听 0.0.0.0:{PORT}")
+    print(f"浏览器查看: http://<本机IP>:{PORT}/")
+    srv.serve_forever()
