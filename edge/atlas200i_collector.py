@@ -667,6 +667,44 @@ class ValveController:
     def _forward_to_esp_unlocked(self, command, allow_retry=True):
         if self.esp_serial is None:
             return False
+        # The CH340 path is reliable when opened for one transaction, but
+        # toggling DTR/RTS resets the ESP32 and creates the visible delay.
+        # Reopen the port without reset for interactive commands.
+        if command.get("action") in {"manual", "mode", "config"}:
+            helper = ROOT / "edge" / "esp_uart_command.py"
+            self.esp_serial.close()
+            self.esp_serial = None
+            args = [sys.executable, str(helper), "--port", self.esp_port,
+                    "--command", json.dumps(command, separators=(",", ":")),
+                    "--no-reset"]
+            result = subprocess.run(args, text=True, capture_output=True,
+                                    timeout=3, check=False)
+            self.esp_serial = PosixSerial(self.esp_port,
+                                          int_value(self.config, "ZHIRUN_ESP_SERIAL_BAUD"),
+                                          reset_on_open=False)
+            state_start = result.stdout.rfind("STATE ")
+            if state_start >= 0:
+                try:
+                    state, _ = json.JSONDecoder().raw_decode(
+                        result.stdout[state_start + 6:].lstrip())
+                    self.esp_state = state
+                    was_on = self.valve_on
+                    self.valve_on = bool(state.get("valveOn", False))
+                    if self.valve_on and not was_on:
+                        self.started_at = time.monotonic() - max(
+                            0.0, float(state.get("runSeconds", 0) or 0))
+                    elif not self.valve_on:
+                        self.started_at = 0.0
+                    reported_mode = state.get("mode", self.mode)
+                    if (reported_mode == self.mode or
+                            time.monotonic() - self.mode_command_at >= 3.0):
+                        self.mode = reported_mode
+                    self.error = state.get("error", "")
+                    self.esp_ready = True
+                    print("[ESP] state %s" % json.dumps(state, separators=(",", ":")))
+                except json.JSONDecodeError:
+                    pass
+            return True
         print("[ESP] tx %s" % json.dumps(command, separators=(",", ":")))
         # A CH340 reconnect can leave boot/diagnostic bytes in the receive
         # queue. Discard those bytes so they cannot prefix the first STATE
