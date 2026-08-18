@@ -672,10 +672,14 @@ class ValveController:
         except OSError:
             pass
         os.write(self.esp_serial.fd, (json.dumps({"command": command}, separators=(",", ":")) + "\n").encode("utf-8"))
-        # CH340/ESP32 can need over one second after an auto-reset before its
-        # first UART reply is available. Keep the command pending long enough
-        # to receive the complete STATE line.
-        deadline = time.monotonic() + 1.0
+        # Sensor forwarding is periodic telemetry, not an interactive
+        # command. Do not hold the UART lock waiting for its acknowledgement;
+        # an open/close command must always be able to pass immediately after.
+        if command.get("action") == "sensor":
+            return True
+        # The UART is already open and stable. Give the interactive command a
+        # brief chance to provide STATE without delaying the next command.
+        deadline = time.monotonic() + 0.3
         got_state = False
         while time.monotonic() < deadline:
             ready, _, _ = select.select([self.esp_serial.fd], [], [], max(0, deadline - time.monotonic()))
