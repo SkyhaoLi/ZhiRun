@@ -666,7 +666,13 @@ class ValveController:
                     # requiring the whole UART capture to be valid JSON.
                     self.esp_state, _ = json.JSONDecoder().raw_decode(
                         result.stdout[state_start + 6:].lstrip())
+                    was_on = self.valve_on
                     self.valve_on = bool(self.esp_state.get("valveOn", False))
+                    if self.valve_on and not was_on:
+                        reported_run_s = max(0.0, float(self.esp_state.get("runSeconds", 0) or 0))
+                        self.started_at = time.monotonic() - reported_run_s
+                    elif not self.valve_on:
+                        self.started_at = 0.0
                     self.mode = self.esp_state.get("mode", self.mode)
                     self.error = self.esp_state.get("error", "")
                     self.esp_ready = True
@@ -703,7 +709,13 @@ class ValveController:
                     state, end = json.JSONDecoder().raw_decode(
                         self.esp_rx_buffer[state_start + 6:].lstrip())
                     self.esp_state = state
+                    was_on = self.valve_on
                     self.valve_on = bool(state.get("valveOn", False))
+                    if self.valve_on and not was_on:
+                        reported_run_s = max(0.0, float(state.get("runSeconds", 0) or 0))
+                        self.started_at = time.monotonic() - reported_run_s
+                    elif not self.valve_on:
+                        self.started_at = 0.0
                     self.mode = state.get("mode", self.mode)
                     self.error = state.get("error", "")
                     print("[ESP] state %s" % json.dumps(state, separators=(",", ":")))
