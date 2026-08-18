@@ -794,7 +794,9 @@ class ValveController:
 
     def poll(self):
         now = time.monotonic()
-        if self.valve_on and now - self.started_at >= self.max_run_s:
+        # Manual mode stays open until the user explicitly closes it. Keep the
+        # timeout as an automatic-mode fail-safe only.
+        if self.valve_on and self.mode == "auto" and now - self.started_at >= self.max_run_s:
             self._write(False)
             self.valve_on = False
             self.error = "max_run_timeout"

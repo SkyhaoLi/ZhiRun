@@ -376,7 +376,11 @@ void loop() {
   const unsigned long now = millis();
   pollSerialCommands();
   updateAutomaticControl(now);
-  if (pumpOn && millis() - startedAt >= maxRunMs) setPump(false, "max_runtime_reached");
+  // Manual mode remains on until an explicit close command. The maximum
+  // runtime is an automatic-mode safety limit only.
+  if (controlMode == "auto" && pumpOn && millis() - startedAt >= maxRunMs) {
+    setPump(false, "max_runtime_reached");
+  }
   if (WIRED_ONLY) {
     delay(20);
     return;
@@ -404,7 +408,9 @@ void loop() {
   }
   // pollCommand() may turn the pump on after `now` was sampled above.  Read
   // the clock again so `startedAt` cannot be newer than the comparison time.
-  if (pumpOn && millis() - startedAt >= maxRunMs) setPump(false, "max_runtime_reached");
+  if (controlMode == "auto" && pumpOn && millis() - startedAt >= maxRunMs) {
+    setPump(false, "max_runtime_reached");
+  }
   if (now - lastReportAt >= REPORT_INTERVAL_MS) {
     lastReportAt = now;
     heartbeat();
