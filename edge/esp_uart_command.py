@@ -30,7 +30,7 @@ def transact(port, command, reset=True):
             fcntl.ioctl(fd, termios.TIOCMBIS, struct.pack("I", mask))
             time.sleep(0.35)
         os.write(fd, (json.dumps({"command": command}, separators=(",", ":")) + "\n").encode("utf-8"))
-        end = time.monotonic() + 4.0
+        end = time.monotonic() + 0.6
         data = bytearray()
         while time.monotonic() < end:
             ready, _, _ = select.select([fd], [], [], min(0.5, end - time.monotonic()))

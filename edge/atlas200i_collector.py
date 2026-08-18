@@ -670,7 +670,7 @@ class ValveController:
         # The CH340 path is reliable when opened for one transaction, but
         # toggling DTR/RTS resets the ESP32 and creates the visible delay.
         # Reopen the port without reset for interactive commands.
-        if command.get("action") in {"manual", "mode", "config"}:
+        if command.get("action") in {"manual", "mode", "config", "sensor"}:
             helper = ROOT / "edge" / "esp_uart_command.py"
             self.esp_serial.close()
             self.esp_serial = None
