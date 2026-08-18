@@ -302,8 +302,13 @@ void updateAutomaticControl(unsigned long now) {
 
   if (latestSoilMoisture >= 0.0F && latestSoilMoisture <= 100.0F) {
     const float soil = latestSoilMoisture;
-    if (!pumpOn && soil < onThreshold) setPump(true, "");
-    else if (pumpOn && now - startedAt >= minRunMs && soil >= offThreshold) setPump(false, "auto_moisture_reached");
+    if (!pumpOn && soil < onThreshold) {
+      setPump(true, "");
+      reportSerialState();
+    } else if (pumpOn && now - startedAt >= minRunMs && soil >= offThreshold) {
+      setPump(false, "auto_moisture_reached");
+      reportSerialState();
+    }
     return;
   }
   if (!WiFi.isConnected()) {
