@@ -198,8 +198,29 @@ def weather_forecast(latitude, longitude):
         "sunrise,sunset&timezone=auto&forecast_days=7"
     ).format(lat=latitude, lon=longitude)
     request = Request(query, headers={"User-Agent": "ZhiRun-WeatherPanel/1.0"})
-    with urlopen(request, timeout=6) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=6) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        # Weather is auxiliary data. Keep the dashboard usable when the
+        # external provider is briefly unavailable, using the last location
+        # cache before falling back to an empty but valid response.
+        with _lock:
+            if _weather_cache["key"] == cache_key and _weather_cache["data"]:
+                stale = dict(_weather_cache["data"])
+                stale["stale"] = True
+                return stale
+        return {
+            "ok": True,
+            "stale": True,
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": {},
+            "hourly": {},
+            "daily": {},
+            "timezone": "",
+            "updated_at": now(),
+        }
 
     result = {
         "ok": True,
