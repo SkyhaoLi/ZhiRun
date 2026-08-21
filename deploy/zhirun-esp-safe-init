@@ -1,0 +1,11 @@
+#!/bin/sh
+port=/dev/serial/by-path/platform-xhci-hcd.1.auto-usb-0:1.2:1.0-port0
+i=0
+while [ "$i" -lt 15 ]; do
+    [ -e "$port" ] && break
+    i=$((i + 1))
+    sleep 1
+done
+[ -e "$port" ] || exit 0
+/usr/bin/python3 /home/HwHiAiUser/zhirun/edge/esp_uart_command.py     --port "$port" --command '{"action":"mode","mode":"manual"}' --no-reset
+exit 0

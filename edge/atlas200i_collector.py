@@ -166,9 +166,14 @@ class PosixSerial:
         self.fd = os.open(path, os.O_RDWR | os.O_NOCTTY)
         self.baud = None
         self.rx_buffer = bytearray()
-        self.set_baud(baud)
-        if reset_on_open:
-            self._reset_esp32_uart()
+        try:
+            self.set_baud(baud)
+            if reset_on_open:
+                self._reset_esp32_uart()
+        except Exception:
+            os.close(self.fd)
+            self.fd = None
+            raise
 
     def _reset_esp32_uart(self):
         """Release the CH340 auto-reset lines into normal ESP32 run mode."""
@@ -502,6 +507,7 @@ class ValveController:
         self.open_count = 0
         self.started_at = 0.0
         self.last_poll = 0.0
+        self.next_setup_retry = 0.0
         self.wifi_networks = []
         self.wifi_scanned_at = 0
         self.wifi_error = ""
@@ -628,7 +634,8 @@ class ValveController:
             self._setup()
         except (OSError, ValueError) as exc:
             self.available = False
-            self.error = "valve_gpio_unavailable: %s" % exc
+            error_kind = "esp_serial_unavailable" if self.esp_port else "valve_gpio_unavailable"
+            self.error = "%s: %s" % (error_kind, exc)
             print("[VALVE] %s" % self.error, file=sys.stderr)
         self.poll_thread = threading.Thread(target=self._poll_loop, name="valve-command-poll", daemon=True)
         self.poll_thread.start()
@@ -837,6 +844,15 @@ class ValveController:
 
     def poll(self):
         now = time.monotonic()
+        if self.esp_port and self.esp_serial is None and now >= self.next_setup_retry:
+            self.next_setup_retry = now + 3.0
+            try:
+                self._setup()
+                print("[ESP] serial link recovered on %s" % self.esp_port)
+                self._report()
+            except (OSError, ValueError) as exc:
+                self.available = False
+                self.error = "esp_serial_unavailable: %s" % exc
         # Manual mode stays open until the user explicitly closes it. Keep the
         # timeout as an automatic-mode fail-safe only.
         if self.valve_on and self.mode == "auto" and now - self.started_at >= self.max_run_s:

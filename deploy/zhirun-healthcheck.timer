@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ZhiRun health checks periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=zhirun-healthcheck.service
+
+[Install]
+WantedBy=timers.target

@@ -26,6 +26,7 @@ public server relays commands and stores the latest state.
 | `fertigation_model/` | Fertigation decision model, scripts, test cases, and datasets |
 | `docs/` | Atlas deployment and rollback guide |
 | `tools/` | Windows network/NAT helper scripts |
+| `deploy/` | Atlas boot preparation, systemd units, and self-healing checks |
 | `.env.atlas.example` | Atlas configuration template without secrets |
 
 The existing `灌溉模型/灌溉模型/` directory contains the fertigation model source. It is retained at its current path for compatibility; treat it as the `fertigation_model` component described above.
@@ -47,6 +48,9 @@ python server/zhirun_server.py
 ```
 
 4. Deploy the Atlas collector with `edge/deploy/zhirun-atlas-collector.service`.
+
+For the production Atlas boot and recovery setup, install the scripts and units
+from `deploy/` as documented in `deploy/README.md`.
 
 The Atlas configuration must set `ZHIRUN_ATLAS_SERVER` to the public service,
 not to a PC-side relay. Verify the runtime route with:

@@ -1,0 +1,17 @@
+#!/bin/sh
+set -u
+ip link set eth0 up
+i=0
+while [ "$i" -lt 30 ]; do
+    ping -I 192.168.124.253 -c 1 -W 1 192.168.124.1 >/dev/null 2>&1 && break
+    i=$((i + 1))
+    sleep 2
+done
+networkctl renew eth0 >/dev/null 2>&1 || true
+i=0
+while [ "$i" -lt 45 ]; do
+    ip -4 route show default | grep -q . && exit 0
+    i=$((i + 1))
+    sleep 2
+done
+exit 0

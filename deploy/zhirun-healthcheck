@@ -1,0 +1,25 @@
+#!/bin/sh
+set -u
+log() { logger -t zhirun-health "$*"; }
+
+if ! curl -fsS --connect-timeout 3 --max-time 8 http://127.0.0.1:10000/data >/dev/null 2>&1; then
+    log "local dashboard failed health check; restarting zhirun-server"
+    systemctl restart zhirun-server.service
+fi
+
+collector_log=/home/HwHiAiUser/zhirun/atlas-collector-live.log
+now=$(date +%s)
+mtime=0
+[ -f "$collector_log" ] && mtime=$(stat -c %Y "$collector_log" 2>/dev/null || echo 0)
+if ! systemctl is-active --quiet zhirun-atlas-collector.service || [ $((now - mtime)) -gt 60 ]; then
+    log "collector inactive or log stale; restarting zhirun-atlas-collector"
+    systemctl restart zhirun-atlas-collector.service
+fi
+
+if ping -I 192.168.124.253 -c 1 -W 1 192.168.124.1 >/dev/null 2>&1; then
+    if ! ip -4 route show default dev eth0 proto dhcp | grep -q .; then
+        log "H3C reachable but DHCP default route missing; renewing eth0"
+        networkctl renew eth0 >/dev/null 2>&1 || true
+    fi
+fi
+exit 0
