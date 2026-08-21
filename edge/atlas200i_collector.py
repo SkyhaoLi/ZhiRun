@@ -9,6 +9,7 @@ Dependencies: Python 3 standard library only.
 """
 import argparse
 import fcntl
+import http.client
 import json
 import os
 import select
@@ -83,6 +84,15 @@ DEFAULTS = {
     # Empty preserves the legacy Atlas GPIO controller.
     "ZHIRUN_ESP_SERIAL_PORT": "",
     "ZHIRUN_ESP_SERIAL_BAUD": "115200",
+    # H3C is the Wi-Fi client in the production topology. Atlas reaches the
+    # router management API over its static address on eth0.
+    "ZHIRUN_H3C_URL": "http://192.168.124.1",
+    "ZHIRUN_H3C_SOURCE_IP": "192.168.124.253",
+    "ZHIRUN_H3C_STATE_FILE": "/var/lib/zhirun-atlas/h3c_network.json",
+    "ZHIRUN_H3C_UPLINK_SSID": "",
+    "ZHIRUN_H3C_LOCAL_SSID": "",
+    "ZHIRUN_H3C_LOCAL_SSID_5G": "",
+    "ZHIRUN_H3C_LOCAL_WIFI_PASSWORD": "",
 }
 
 
@@ -511,102 +521,144 @@ class ValveController:
         self.wifi_networks = []
         self.wifi_scanned_at = 0
         self.wifi_error = ""
+        self.h3c_url = urlparse(config["ZHIRUN_H3C_URL"])
+        self.h3c_source_ip = config["ZHIRUN_H3C_SOURCE_IP"].strip()
+        self.h3c_state_path = Path(config["ZHIRUN_H3C_STATE_FILE"])
+        self.h3c_uplink = self._load_h3c_state()
+        if not self.h3c_uplink.get("ssid") and config["ZHIRUN_H3C_UPLINK_SSID"].strip():
+            self.h3c_uplink["ssid"] = config["ZHIRUN_H3C_UPLINK_SSID"].strip()
+        self.h3c_connected = False
+        self.h3c_status_checked_at = 0.0
+        self.h3c_pending_until = 0.0
 
-    def _nmcli(self, args, timeout=20):
-        """Run NetworkManager without exposing credentials in logs or shell."""
-        return subprocess.run(["nmcli", *args], text=True, capture_output=True,
-                              timeout=timeout, check=False)
-
-    def _wifi_device(self):
+    def _load_h3c_state(self):
         try:
-            result = self._nmcli(["-t", "-f", "DEVICE,TYPE", "device", "status"], timeout=8)
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        if result.returncode:
-            return None
-        for line in result.stdout.splitlines():
-            parts = line.split(":", 1)
-            if len(parts) == 2 and parts[1] == "wifi":
-                return parts[0]
-        return None
+            data = json.loads(self.h3c_state_path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError, json.JSONDecodeError):
+            return {}
 
-    @staticmethod
-    def _split_nmcli(line):
-        fields, field, escaped = [], [], False
-        for char in line:
-            if escaped:
-                field.append(char)
-                escaped = False
-            elif ord(char) == 92:
-                escaped = True
-            elif char == ":":
-                fields.append("".join(field))
-                field = []
-            else:
-                field.append(char)
-        fields.append("".join(field))
-        return fields
+    def _save_h3c_state(self):
+        data = {key: self.h3c_uplink.get(key, "") for key in ("ssid", "radio", "auth", "bssid")}
+        self.h3c_state_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.h3c_state_path.with_suffix(self.h3c_state_path.suffix + ".tmp")
+        temporary.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        temporary.replace(self.h3c_state_path)
+
+    def _h3c_request(self, path, payload, timeout=12):
+        host = self.h3c_url.hostname or "192.168.124.1"
+        port = self.h3c_url.port or 80
+        source = (self.h3c_source_ip, 0) if self.h3c_source_ip else None
+        connection = http.client.HTTPConnection(host, port, timeout=timeout, source_address=source)
+        try:
+            body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            connection.request("POST", path, body=body, headers={"Content-Type": "application/json"})
+            response = connection.getresponse()
+            raw = response.read()
+            if response.status != 200:
+                raise OSError("H3C HTTP %s" % response.status)
+            result = json.loads(raw.decode("utf-8"))
+            if not isinstance(result, dict):
+                raise ValueError("invalid H3C response")
+            return result
+        finally:
+            connection.close()
 
     def _scan_wifi(self):
-        device = self._wifi_device()
-        if not device:
-            self.wifi_networks = []
-            self.wifi_error = "wireless_adapter_not_found"
-            self.wifi_scanned_at = int(time.time())
-            return
         try:
-            result = self._nmcli(["-t", "--escape", "yes", "-f", "SSID,SIGNAL,SECURITY",
-                                  "device", "wifi", "list", "ifname", device, "--rescan", "yes"], timeout=20)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            self.wifi_error = "wifi_scan_failed: %s" % exc
+            result = self._h3c_request("/api/wizard/getWifiNeighbour", {}, timeout=40)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            self.wifi_error = "h3c_scan_failed: %s" % exc
             return
-        if result.returncode:
-            self.wifi_error = (result.stderr.strip() or "wifi_scan_failed")[:160]
+        if str(result.get("code")) != "0":
+            self.wifi_error = "h3c_scan_failed: %s" % (result.get("message") or result.get("code"))
             return
         networks = {}
-        for line in result.stdout.splitlines():
-            ssid, signal, security = (self._split_nmcli(line) + ["", "", ""])[:3]
-            if not ssid:
-                continue
-            try:
-                rssi = int(signal) * 2 - 100
-            except ValueError:
-                rssi = -100
-            item = {"ssid": ssid, "rssi": rssi, "lock": bool(security and security != "--")}
-            if ssid not in networks or item["rssi"] > networks[ssid]["rssi"]:
-                networks[ssid] = item
+        for section in ("data1", "data2"):
+            items = result.get(section, {}).get("neighbourList", [])
+            for source in items if isinstance(items, list) else []:
+                ssid = str(source.get("ssid") or "").strip()
+                radio = str(source.get("radio") or "")
+                if not ssid:
+                    continue
+                item = {"ssid": ssid, "rssi": int(source.get("rssi") or -100),
+                        "lock": source.get("auth") != "share", "radio": radio,
+                        "auth": str(source.get("auth") or "share"),
+                        "bssid": str(source.get("bssid") or ""),
+                        "channel": source.get("channel")}
+                key = (ssid, radio)
+                if key not in networks or item["rssi"] > networks[key]["rssi"]:
+                    networks[key] = item
         self.wifi_networks = sorted(networks.values(), key=lambda item: item["rssi"], reverse=True)
+        if self.h3c_uplink.get("ssid") and not self.h3c_uplink.get("radio"):
+            matches = [item for item in self.wifi_networks if item["ssid"] == self.h3c_uplink["ssid"]]
+            if matches:
+                selected = max(matches, key=lambda item: item["rssi"])
+                self.h3c_uplink.update({key: selected.get(key, "") for key in ("radio", "auth", "bssid")})
+                self._save_h3c_state()
         self.wifi_scanned_at = int(time.time())
         self.wifi_error = ""
 
-    def _connect_wifi(self, ssid, password):
-        device = self._wifi_device()
-        if not device:
-            self.wifi_error = "wireless_adapter_not_found"
+    def _connect_wifi(self, ssid, password, radio="", auth="", bssid=""):
+        if not ssid:
+            self.wifi_error = "bad_ssid"
             return
-        args = ["device", "wifi", "connect", ssid, "ifname", device]
-        if password:
-            args.extend(["password", password])
+        matches = [item for item in self.wifi_networks if item.get("ssid") == ssid]
+        if matches:
+            selected = max(matches, key=lambda item: item.get("rssi", -100))
+            radio = radio or selected.get("radio", "")
+            auth = auth or selected.get("auth", "")
+            bssid = bssid or selected.get("bssid", "")
+        radio = radio if radio in {"2.4G", "5G"} else "2.4G"
+        auth = auth or ("wpa2psk" if password else "share")
+        local_key = self.config["ZHIRUN_H3C_LOCAL_WIFI_PASSWORD"].strip()
+        if len(local_key) < 8:
+            self.wifi_error = "h3c_local_password_not_configured"
+            return
         try:
-            result = self._nmcli(args, timeout=45)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            self.wifi_error = "wifi_connect_failed: %s" % exc
+            local = self._h3c_request("/api/wizard/getssidname", {}, timeout=10).get("data", {})
+            local_ssid = self.config["ZHIRUN_H3C_LOCAL_SSID"].strip() or local.get("ssid") or "H3C_ZHIRUN"
+            local_ssid_5g = self.config["ZHIRUN_H3C_LOCAL_SSID_5G"].strip() or local.get("ssid5g") or (local_ssid + "_5G")
+            payload = {
+                "wanConfig": {"intf": "WAN1", "workMode": "repeater", "ip": "", "submask": "",
+                              "gwIp": "", "dnsMaster": "", "dnsSlave": ""},
+                "lanConfig": {"ip": "", "submask": ""},
+                "wirelessConfig": {"ssid": local_ssid, "ssid5g": local_ssid_5g,
+                                   "key": local_key, "pageFrom": 1},
+                "devPassword": local_key,
+                "wirelessPasswdSync": "false",
+                "repeaterConfig": {"periorssid": ssid, "periorkey": password,
+                                   "periorradio": radio, "periorencrypt": auth},
+            }
+            result = self._h3c_request("/api/wizard/networkSetup", payload, timeout=25)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            self.wifi_error = "h3c_connect_failed: %s" % exc
             return
-        self.wifi_error = "" if result.returncode == 0 else (result.stderr.strip() or "wifi_connect_failed")[:160]
-        self._scan_wifi()
+        if str(result.get("code")) != "0":
+            self.wifi_error = "h3c_connect_failed: %s" % (result.get("message") or result.get("code"))
+            return
+        self.h3c_uplink = {"ssid": ssid, "radio": radio, "auth": auth, "bssid": bssid}
+        self._save_h3c_state()
+        self.h3c_connected = False
+        self.h3c_pending_until = time.monotonic() + 10.0
+        self.h3c_status_checked_at = 0.0
+        self.wifi_error = ""
 
     def _wifi_status(self):
+        current = time.monotonic()
+        if current < self.h3c_pending_until:
+            return False, self.h3c_uplink.get("ssid", "")
+        if current - self.h3c_status_checked_at < 5.0:
+            return self.h3c_connected, self.h3c_uplink.get("ssid", "")
+        self.h3c_status_checked_at = current
         try:
-            result = self._nmcli(["-t", "--escape", "yes", "-f", "ACTIVE,SSID", "device", "wifi"], timeout=8)
-        except (OSError, subprocess.TimeoutExpired):
-            return False, ""
-        if result.returncode:
-            return False, ""
-        for line in result.stdout.splitlines():
-            active, ssid = (self._split_nmcli(line) + [""])[:2]
-            if active == "yes" and ssid:
-                return True, ssid
-        return False, ""
+            result = self._h3c_request("/api/wizard/getNetworkStatus", {}, timeout=8)
+            data = result.get("data", {})
+            self.h3c_connected = (str(result.get("code")) == "0" and data.get("workMode") == "repeater" and
+                                  data.get("status") == "repeaterSuccess")
+        except (OSError, ValueError, json.JSONDecodeError):
+            self.h3c_connected = False
+        return self.h3c_connected, self.h3c_uplink.get("ssid", "")
 
     def _setup(self):
         if self.esp_port:
@@ -665,7 +717,8 @@ class ValveController:
                 "runS": run_s, "openCount": self.open_count, "gpio": self.gpio,
                 "gpioHigh": gpio_high, "gpio42High": gpio_high, "error": self.error,
                 "wifiNetworks": self.wifi_networks, "wifiScannedAt": self.wifi_scanned_at,
-                "wifiError": self.wifi_error, "wifiConnected": wifi_connected, "wifiSsid": wifi_ssid}
+                "wifiError": self.wifi_error, "wifiConnected": wifi_connected, "wifiSsid": wifi_ssid,
+                "wifiRadio": self.h3c_uplink.get("radio", ""), "wifiController": "h3c"}
         state.update(self.esp_state)
         # A delayed UART frame from before the latest mode command must not
         # make the dashboard jump back to the previous control mode.
@@ -822,7 +875,9 @@ class ValveController:
             self._scan_wifi()
             return
         if action == "network_config":
-            self._connect_wifi(str(command.get("ssid") or ""), str(command.get("password") or ""))
+            self._connect_wifi(str(command.get("ssid") or ""), str(command.get("password") or ""),
+                               str(command.get("radio") or ""), str(command.get("auth") or ""),
+                               str(command.get("bssid") or ""))
             return
         if action != "manual":
             return

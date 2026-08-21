@@ -38,18 +38,11 @@ python3 /home/HwHiAiUser/zhirun/edge/atlas200i_collector.py \
   --config /home/HwHiAiUser/.config/zhirun-atlas.env --once
 ```
 
-## 路由器 Wi-Fi 配网
+## H3C 中继 Wi-Fi 配网
 
-联网页会通过采集服务向 Atlas 下发扫描和连接命令。Atlas 上需要已经接入并加载无线网卡驱动，且系统安装、启用 `NetworkManager`（`nmcli`）。进入联网页后点击“扫描”，选择路由器 Wi-Fi 并输入密码即可连接；密码只存在于一次待执行命令中，不会写入网页服务的状态文件或日志。
+生产拓扑中 Atlas 通过 `eth0` 有线连接 H3C R3010，H3C 才是无线客户端。联网页通过采集服务调用 H3C 管理接口，扫描附近 Wi-Fi 并修改 H3C 的上联网络，不依赖 Atlas 无线网卡或 NetworkManager。
 
-可先在 Atlas 上确认无线环境：
-
-```bash
-nmcli device status
-nmcli device wifi list
-```
-
-若没有显示 `wifi` 类型设备，先安装并加载 USB Wi-Fi 驱动。项目中的 AIC8800 驱动支持通过 `nmcli` 管理。
+Atlas 在 `eth0` 上保留 `192.168.124.253/24`，用于访问 H3C 管理地址 `192.168.124.1`。配置文件必须设置 `ZHIRUN_H3C_LOCAL_WIFI_PASSWORD`；切换上联时会保留 H3C 当前广播名称，并用该密码保护 H3C 本地 Wi-Fi。上联密码仅存在于一次待执行命令中，不写入状态文件或日志；状态文件只保存 SSID、频段、加密类型和 BSSID。
 
 ## 水泵手动控制
 

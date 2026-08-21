@@ -299,7 +299,7 @@ def valve_snapshot(device_id):
         if connected_ssid == attempt["ssid"]:
             state["networkAttempt"] = {"status": "success", "ssid": attempt["ssid"]}
             _network_attempt_by_device.pop(device_id, None)
-        elif elapsed >= 45:
+        elif elapsed >= 90:
             state["networkAttempt"] = {"status": "failed", "ssid": attempt["ssid"]}
         else:
             state["networkAttempt"] = {"status": "connecting", "ssid": attempt["ssid"]}
@@ -936,6 +936,10 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 device_id = current_device_id()
                 params = {"ssid": ssid.strip(), "password": password}
+                for key, limit in (("radio", 8), ("auth", 32), ("bssid", 32)):
+                    value = obj.get(key)
+                    if isinstance(value, str) and len(value) <= limit:
+                        params[key] = value
                 name = obj.get("device_name")
                 if isinstance(name, str) and name.strip():
                     params["device_name"] = name.strip()[:96]
