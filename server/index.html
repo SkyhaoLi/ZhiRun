@@ -479,11 +479,7 @@
 </div>
 <script>
 const $=id=>document.getElementById(id);
-const DEFAULT_ONLINE_TIMEOUT_S=45;
-let schema=[], cfg={},lastDataAgeAtFetch=Number.POSITIVE_INFINITY,lastDataFetchedAt=0;
-function onlineTimeoutSeconds(){const value=Number(cfg.online_timeout_s);return Number.isFinite(value)&&value>=10?value:DEFAULT_ONLINE_TIMEOUT_S;}
-function rememberDataFreshness(data){const age=Number(data&&data._age);if(Number.isFinite(age)){lastDataAgeAtFetch=Math.max(0,age);lastDataFetchedAt=Date.now();}}
-function currentDataAge(){return lastDataFetchedAt?lastDataAgeAtFetch+(Date.now()-lastDataFetchedAt)/1000:Number.POSITIVE_INFINITY;}
+let schema=[], cfg={};
 function fmt(v,d){return (v===null||v===undefined)?'--':(typeof v==='number'?v.toFixed(d):v);}
  const FARM_FIELDS=[['🌡','空气温度','airTemp','°C',1],['◉','空气湿度','airHum','%RH',1],['☁','CO₂ 浓度','co2','ppm',0],['☀','光照强度','lux','lux',0],['💧','土壤水分','soilMoist','%',1],['🌱','土壤温度','soilTemp','°C',1],['⚗','土壤 PH','soilPH','',2],['≋','瞬时风速','windSpeed','m/s',1],['◆','土壤氮 (N)','n','mg/kg',0],['◆','土壤磷 (P)','p','mg/kg',0],['◆','土壤钾 (K)','k','mg/kg',0],['☂','雨量','rainMm','mm/24h',1]];
 let farmWeatherData=null;
@@ -511,7 +507,7 @@ function renderFarm(d={}){
   $('farmSummary').textContent=sm==null?'当前还没有收到完整的土壤数据，请检查传感器连接。':(abnormal.length?'当前需要关注：'+abnormal.slice(0,3).map(x=>x[0]+x[1]).join('、')+'。建议结合天气与自动灌溉规则安排作业。':'土壤水分和主要环境指标处于常用范围，农田状态平稳，继续保持实时观察。');
   const score=sm==null?'--':Math.max(40,100-abnormal.length*9);$('farmScore').textContent=score==='--'?'--':score+'分';$('farmUpdated').textContent='最后更新：'+new Date().toLocaleTimeString();renderFarmAlerts();
 }
-function dataOnline(){return lastDataFetchedAt?currentDataAge()<=onlineTimeoutSeconds():(cfg.mode||'offline')==='normal';}
+function dataOnline(){const age=Number(lastData&&lastData._age);return Number.isFinite(age)?age<=10:(cfg.mode||'normal')==='normal';}
 function renderFarmMeta(){const online=dataOnline(),ssid=valveCfg.wifiSsid||cfg.ssid||'--';$('farmConnection').classList.toggle('farm-off',!online);$('farmConnectionText').textContent=online?'设备在线':'设备离线';$('farmOnline').textContent=online?'在线':'离线';$('farmDevice').textContent=cfg.device_id||'--';$('farmIp').textContent=cfg.ip||'--';$('farmWifi').textContent=ssid;$('farmSubTitle').textContent=(cfg.device_name||'农田综合驾驶舱')+(cfg.ip?' · '+cfg.ip:'');renderFarmAlerts();}
 function renderFarmValve(){if(!$('farmSwitch'))return;const manual=valveCfg.mode==='manual';$('farmAuto').classList.toggle('active',!manual);$('farmManual').classList.toggle('active',manual);$('farmSwitch').classList.toggle('on',!!valveCfg.valveOn);$('farmSwitch').disabled=false;$('farmValveText').textContent=valveCfg.valveOn?'正在灌溉':(manual?'阀门已关闭':'自动控制中');$('farmRun').textContent=valveCfg.valveOn?fmtS(displayedValveRunS()):'未运行';$('farmCount').textContent=(valveCfg.openCount==null?'--':valveCfg.openCount)+' 次';renderFarmMeta();renderFarmAlerts();}
 function syncFarmSwitchLabel(){const el=$('farmSwitchLabel');if(el)el.textContent=valveCfg.valveOn?'ON':'OFF';const run=displayedValveRunS();if($('vRun'))$('vRun').textContent=valveCfg.valveOn?fmtS(run):'未在浇水';if($('farmRun'))$('farmRun').textContent=valveCfg.valveOn?fmtS(run):'未运行';}
@@ -594,8 +590,8 @@ async function loadSchema(){try{
   if(!gridBuilt||prevKeys!==schemaSeen.map(f=>f.key).join(',')){buildGrid();render(lastData);}
 }catch(e){}}
 async function tick(){
-  try{const d=await (await fetchTO('/data')).json();rememberDataFreshness(d);render(d);renderConnectionState();}
-  catch(e){renderConnectionState();}
+  try{const d=await (await fetchTO('/data')).json();render(d);const age=Math.max(0,Math.floor(Number(d._age)||0)),offline=age>10,b=$('modeBadge');b.textContent=offline?MODE_TXT.offline:MODE_TXT.normal;b.className='badge'+(offline?' off':'');$('foot').textContent=new Date().toLocaleTimeString()+' · '+(offline?'设备离线时间：'+fmtDuration(age):'设备运行时间：'+(d._uptimeS==null?'--':fmtDuration(d._uptimeS)));$('foot').className='foot'+(offline?' off':'');}
+  catch(e){$('foot').textContent=new Date().toLocaleTimeString()+' · 设备离线时间：--';$('foot').className='foot off';}
   // 即使 /data 失败也保留上次读数, 不清空网格 (render 已用 lastData 兜底)
 }
 function fmtDuration(seconds){const total=Math.max(0,Math.floor(Number(seconds)||0)),hours=Math.floor(total/3600),minutes=Math.floor(total%3600/60),secs=total%60;return (hours?hours+'小时':'')+(minutes?minutes+'分':'')+secs+'秒';}
@@ -653,16 +649,10 @@ function publicServiceBase(){
 }
 // ---- 顶部状态 ----
 const MODE_TXT={normal:'正常在线',offline:'离线(断网就地采集)',provision:'待配置',setup:'待配置'};
-function renderConnectionState(){
-  const online=dataOnline(),age=currentDataAge(),b=$('modeBadge');
-  b.textContent=online?MODE_TXT.normal:MODE_TXT.offline;b.className='badge'+(online?'':' off');
-  $('foot').textContent=new Date().toLocaleTimeString()+' · '+(online?'设备运行时间：'+(lastData._uptimeS==null?'--':fmtDuration(lastData._uptimeS)):'设备离线时间：'+(Number.isFinite(age)?fmtDuration(age):'--'));
-  $('foot').className='foot'+(online?'':' off');renderFarmMeta();
-}
 async function loadCfg(){
   try{cfg=await (await fetchTO('/config')).json();}catch(e){cfg=cfg||{};}
   $('devName').textContent=cfg.device_name||'环境实时监测';
-  const configuredMode=cfg.mode||'offline',m=(configuredMode==='provision'||configuredMode==='setup')?configuredMode:(dataOnline()?'normal':'offline');
+  const m=cfg.mode||'normal';
   $('devSub').textContent=cfg.ip||'';
   const b=$('modeBadge');b.textContent=MODE_TXT[m]||m;b.className='badge'+(m==='offline'||m==='provision'||m==='setup'?' off':'');
   if(cfg.device_id)$('apName').textContent='ZhiRun-'+cfg.device_id.slice(-4).toLowerCase();

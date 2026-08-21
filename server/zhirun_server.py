@@ -45,7 +45,6 @@ REALTIME_DEVICE_ID = os.environ.get("ZHIRUN_REALTIME_DEVICE_ID", "").strip()
 WEATHER_FALLBACK_LATITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LATITUDE", "40.82"))
 WEATHER_FALLBACK_LONGITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LONGITUDE", "111.65"))
 FERTIGATION_URL = os.environ.get("ZHIRUN_FERTIGATION_URL", "http://127.0.0.1:10001").rstrip("/")
-DEVICE_ONLINE_TIMEOUT = max(10, int(os.environ.get("ZHIRUN_DEVICE_ONLINE_TIMEOUT_S", "45")))
 HISTORY_LIMIT = 720
 RECORD_INTERVAL_SECONDS = 5 * 60
 RECORDING_LIMIT = 105120  # Five-minute samples for one year.
@@ -246,6 +245,9 @@ def weather_forecast(latitude, longitude):
     return result
 
 
+DEVICE_ONLINE_TIMEOUT = 45
+
+
 def device_online(device):
     return latest_age(device) <= DEVICE_ONLINE_TIMEOUT
 
@@ -336,30 +338,6 @@ def device_snapshot(device_id):
     # 解析出该设备当前应渲染的字段 (设备自报 > 字典 > 键名), 前端照单渲染
     device["fields"] = resolve_fields(device, latest)
     return device
-
-
-def config_snapshot(device_id):
-    if device_id is None:
-        return {
-            "mode": "offline",
-            "device_name": "环境实时监测",
-            "online_timeout_s": DEVICE_ONLINE_TIMEOUT,
-        }
-    device = _devices.get(device_id, {})
-    latest = _latest_by_device.get(device_id, {})
-    return {
-        "mode": "normal" if device_online(latest) else "offline",
-        "device_id": device_id,
-        "device_name": device.get("device_name") or "环境实时监测",
-        "ssid": device.get("ssid"),
-        "ip": latest.get("networkIp") or device.get("ip"),
-        "network_type": latest.get("networkType") or device.get("network_type"),
-        "network_interface": latest.get("networkInterface"),
-        "network_gateway": latest.get("networkGateway"),
-        "network_connected": bool(latest.get("networkConnected")),
-        "server": device.get("server_url"),
-        "online_timeout_s": DEVICE_ONLINE_TIMEOUT,
-    }
 
 
 def strip_auth(obj):
@@ -803,7 +781,24 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(200, fields)
                     return
                 # /config: 设备身份/在线状态, 给顶栏徽章用
-                self.send_json(200, config_snapshot(device_id))
+                if device_id is None:
+                    self.send_json(200, {"mode": "offline", "device_name": "环境实时监测"})
+                    return
+                device = _devices.get(device_id, {})
+                latest = _latest_by_device.get(device_id, {})
+                online = latest_age(latest) <= 15
+                self.send_json(200, {
+                    "mode": "normal" if online else "offline",
+                    "device_id": device_id,
+                    "device_name": device.get("device_name") or "环境实时监测",
+                    "ssid": device.get("ssid"),
+                    "ip": latest.get("networkIp") or device.get("ip"),
+                    "network_type": latest.get("networkType") or device.get("network_type"),
+                    "network_interface": latest.get("networkInterface"),
+                    "network_gateway": latest.get("networkGateway"),
+                    "network_connected": bool(latest.get("networkConnected")),
+                    "server": device.get("server_url"),
+                })
                 return
 
         if path == "/valve/config":

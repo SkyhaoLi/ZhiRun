@@ -24,11 +24,6 @@ ESP32 is the authoritative source for pump state. The Atlas forwards sensor and 
 | `tools/` | Windows network/NAT helper scripts |
 | `.env.atlas.example` | Atlas configuration template without secrets |
 
-When the Atlas reaches the public server through a Windows deployment computer,
-run `tools/start_atlas_relay.ps1` and point `ZHIRUN_ATLAS_SERVER` at
-`http://192.168.137.1:18080`. The relay accepts only `192.168.137.100` and
-forwards the complete collector API, including telemetry and valve commands.
-
 The existing `灌溉模型/灌溉模型/` directory contains the fertigation model source. It is retained at its current path for compatibility; treat it as the `fertigation_model` component described above.
 
 ## Local Setup
