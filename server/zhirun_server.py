@@ -5,14 +5,17 @@
 服务端保持纯标准库实现, 接收 Atlas 的 /push 上报, 对外提供
 实时数据页 /data、字段布局 /schema、设备状态 /config 与历史缓存。
 """
+import io
 import json
 import os
 import sys
 import threading
 import time
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
+from xml.sax.saxutils import escape
 
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -43,6 +46,8 @@ WEATHER_FALLBACK_LATITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LATITU
 WEATHER_FALLBACK_LONGITUDE = float(os.environ.get("ZHIRUN_WEATHER_FALLBACK_LONGITUDE", "111.65"))
 FERTIGATION_URL = os.environ.get("ZHIRUN_FERTIGATION_URL", "http://127.0.0.1:10001").rstrip("/")
 HISTORY_LIMIT = 720
+RECORD_INTERVAL_SECONDS = 5 * 60
+RECORDING_LIMIT = 105120  # Five-minute samples for one year.
 LEGACY_DEVICE_ID = "legacy-default"
 
 # ---- 固定字段布局 ------------------------------------------------------------
@@ -92,6 +97,7 @@ _lock = threading.RLock()
 _devices = {}
 _latest_by_device = {}
 _history_by_device = {}
+_recordings_by_device = {}
 _valve_by_device = {}
 _valve_commands_by_device = {}
 _network_attempt_by_device = {}
@@ -128,6 +134,7 @@ def load_state():
         _devices.update(state.get("devices", {}))
         _latest_by_device.update(state.get("latest", {}))
         _history_by_device.update(state.get("history", {}))
+        _recordings_by_device.update(state.get("recordings", {}))
     except Exception as exc:
         print("状态文件读取失败, 将从空状态启动:", exc, file=sys.stderr)
 
@@ -148,6 +155,7 @@ def save_state(force=False):
             "devices": _devices,
             "latest": _latest_by_device,
             "history": _history_by_device,
+            "recordings": _recordings_by_device,
         }
         _save_dirty = False
     tmp = STATE_FILE + ".tmp"
@@ -351,6 +359,197 @@ def authorized(obj, device_id=None):
     return bool(stored and supplied == stored)
 
 
+def recording_sample(data, recorded_at):
+    sample = {
+        key: data.get(key)
+        for key in FIXED_KEYS
+        if data.get(key) is not None
+    }
+    sample["_recorded_at"] = recorded_at
+    sample["_data_ts"] = data.get("_ts", recorded_at)
+    return sample
+
+
+def recording_snapshot(device_id):
+    recording = _recordings_by_device.get(device_id, {}) if device_id else {}
+    return {
+        "ok": True,
+        "device_id": device_id,
+        "active": bool(recording.get("active")),
+        "started_at": int(recording.get("started_at", 0) or 0),
+        "stopped_at": int(recording.get("stopped_at", 0) or 0),
+        "next_sample_at": int(recording.get("next_sample_at", 0) or 0),
+        "sample_count": len(recording.get("items", [])),
+        "interval_seconds": RECORD_INTERVAL_SECONDS,
+        "can_export": bool(recording.get("items")),
+    }
+
+
+def start_recording(device_id):
+    timestamp = now()
+    existing = _recordings_by_device.get(device_id, {})
+    if existing.get("active"):
+        return recording_snapshot(device_id)
+
+    latest = _latest_by_device.get(device_id, {})
+    items = [recording_sample(latest, timestamp)] if latest.get("_ts") else []
+    _recordings_by_device[device_id] = {
+        "active": True,
+        "started_at": timestamp,
+        "stopped_at": 0,
+        "next_sample_at": timestamp + RECORD_INTERVAL_SECONDS if items else timestamp,
+        "items": items,
+    }
+    mark_dirty()
+    return recording_snapshot(device_id)
+
+
+def stop_recording(device_id):
+    recording = _recordings_by_device.get(device_id)
+    if recording and recording.get("active"):
+        recording["active"] = False
+        recording["stopped_at"] = now()
+        recording["next_sample_at"] = 0
+        mark_dirty()
+    return recording_snapshot(device_id)
+
+
+def maybe_record_sample(device_id, data, timestamp):
+    recording = _recordings_by_device.get(device_id)
+    if not recording or not recording.get("active"):
+        return
+    next_sample_at = int(recording.get("next_sample_at", 0) or timestamp)
+    if timestamp < next_sample_at:
+        return
+
+    items = recording.setdefault("items", [])
+    items.append(recording_sample(data, timestamp))
+    elapsed_intervals = (timestamp - next_sample_at) // RECORD_INTERVAL_SECONDS + 1
+    next_sample_at += elapsed_intervals * RECORD_INTERVAL_SECONDS
+    recording["next_sample_at"] = next_sample_at
+    if len(items) >= RECORDING_LIMIT:
+        recording["active"] = False
+        recording["stopped_at"] = timestamp
+        recording["next_sample_at"] = 0
+
+
+def column_name(index):
+    name = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def xml_text(value):
+    value = "".join(
+        char for char in str(value)
+        if ord(char) >= 32 or char in "\t\n\r"
+    )
+    return escape(value)
+
+
+def xlsx_cell(reference, value, style=None):
+    style_attr = f' s="{style}"' if style is not None else ""
+    if isinstance(value, bool):
+        value = "是" if value else "否"
+    if isinstance(value, (int, float)):
+        return f'<c r="{reference}"{style_attr}><v>{value}</v></c>'
+    return (
+        f'<c r="{reference}" t="inlineStr"{style_attr}>'
+        f'<is><t>{xml_text(value)}</t></is></c>'
+    )
+
+
+def recording_xlsx(device_id, recording):
+    columns = [("记录时间", "_recorded_at", ""), ("数据上报时间", "_data_ts", "")]
+    columns.extend((field[1], field[0], field[2]) for field in FIELDS_LIST)
+    headers = [f"{label} ({unit})" if unit else label for label, _key, unit in columns]
+
+    rows = []
+    header_cells = [
+        xlsx_cell(f"{column_name(index)}1", value, 1)
+        for index, value in enumerate(headers, 1)
+    ]
+    rows.append(f'<row r="1">{"".join(header_cells)}</row>')
+    for row_index, sample in enumerate(recording.get("items", []), 2):
+        cells = []
+        for column_index, (_label, key, _unit) in enumerate(columns, 1):
+            value = sample.get(key)
+            if key in {"_recorded_at", "_data_ts"} and value:
+                value = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(value))
+            if value is not None:
+                cells.append(xlsx_cell(f"{column_name(column_index)}{row_index}", value))
+        rows.append(f'<row r="{row_index}">{"".join(cells)}</row>')
+
+    last_column = column_name(len(columns))
+    last_row = max(1, len(rows))
+    column_widths = '<col min="1" max="2" width="21" customWidth="1"/>' + (
+        f'<col min="3" max="{len(columns)}" width="15" customWidth="1"/>'
+    )
+    worksheet = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<dimension ref="A1:{last_column}{last_row}"/>'
+        '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" '
+        'activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+        f'<cols>{column_widths}</cols><sheetData>{"".join(rows)}</sheetData>'
+        f'<autoFilter ref="A1:{last_column}{last_row}"/></worksheet>'
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '</Types>'
+    )
+    package_rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+    workbook = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<sheets><sheet name="五分钟数据" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        '</Relationships>'
+    )
+    styles = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<fonts count="2"><font><sz val="11"/><name val="Microsoft YaHei"/></font>'
+        '<font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Microsoft YaHei"/></font></fonts>'
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+        '<fill><patternFill patternType="solid"><fgColor rgb="FF238B45"/><bgColor indexed="64"/></patternFill></fill></fills>'
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+        '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>'
+        '</styleSheet>'
+    )
+
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as book:
+        book.writestr("[Content_Types].xml", content_types)
+        book.writestr("_rels/.rels", package_rels)
+        book.writestr("xl/workbook.xml", workbook)
+        book.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+        book.writestr("xl/styles.xml", styles)
+        book.writestr("xl/worksheets/sheet1.xml", worksheet)
+    return output.getvalue()
+
+
 def record_device(device_id, metadata, payload, source="local"):
     timestamp = now()
     clean_meta = strip_auth(metadata)
@@ -382,6 +581,7 @@ def record_device(device_id, metadata, payload, source="local"):
         history.append(data)
         if len(history) > HISTORY_LIMIT:
             del history[:-HISTORY_LIMIT]
+        maybe_record_sample(device_id, data, timestamp)
         mark_dirty()  # 节流落盘: 不再每帧同步写盘, 由后台线程统一 flush
 
 
@@ -439,6 +639,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_file(self, body, content_type, filename):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -500,6 +710,27 @@ class Handler(BaseHTTPRequestHandler):
                     data = {"_ts": 0, "_age": 999999}
             data["_age"] = latest_age(data)
             self.send_json(200, data)
+            return
+
+        if path in {"/recording/status", "/recording/export"}:
+            requested_device_id = query.get("device_id", [None])[0]
+            with _lock:
+                device_id = current_device_id(requested_device_id)
+                if path == "/recording/status":
+                    self.send_json(200, recording_snapshot(device_id))
+                    return
+                recording = dict(_recordings_by_device.get(device_id, {})) if device_id else {}
+                recording["items"] = [dict(item) for item in recording.get("items", [])]
+            if not recording.get("items"):
+                self.send_json(404, {"ok": False, "message": "no_recorded_data"})
+                return
+            body = recording_xlsx(device_id, recording)
+            stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+            self.send_file(
+                body,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                f"zhirun-data-{stamp}.xlsx",
+            )
             return
 
         if path == "/weather":
@@ -651,6 +882,17 @@ class Handler(BaseHTTPRequestHandler):
             self.proxy_fertigation("/predict", obj)
             return
 
+        if path in {"/recording/start", "/recording/stop"}:
+            requested_device_id = obj.get("device_id")
+            with _lock:
+                device_id = current_device_id(requested_device_id)
+                if not device_id or device_id not in _latest_by_device:
+                    self.send_json(503, {"ok": False, "message": "no_device_data"})
+                    return
+                result = start_recording(device_id) if path.endswith("/start") else stop_recording(device_id)
+            self.send_json(200, result)
+            return
+
         if path == "/push":
             if not authorized(obj):
                 self.send_text(403, "bad token")
@@ -770,7 +1012,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    save_thread = threading.Thread(target=_save_loop, name="state-saver", daemon=True)
+    save_thread.start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"智润服务已启动, 监听 0.0.0.0:{PORT}")
     print(f"浏览器查看: http://<本机IP>:{PORT}/")
-    srv.serve_forever()
+    try:
+        srv.serve_forever()
+    finally:
+        save_state(force=True)

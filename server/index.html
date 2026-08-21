@@ -77,6 +77,9 @@
   .card .unit{font-size:16px;color:var(--muted);font-weight:400;margin-left:4px;-webkit-text-fill-color:var(--muted)}
   @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}.card .val{font-size:30px}.card .label{font-size:19px}}
   @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.card{padding:16px 18px}.card .val{font-size:26px}.card .label{font-size:17px}}
+  .data-tools{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .record-summary{min-width:0}.record-summary strong{display:block;font-size:14px;color:var(--ink)}.record-summary span{display:block;margin-top:4px;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .record-button{min-width:128px;padding:9px 13px;border:1px solid rgba(83,199,167,.55);border-radius:7px;background:rgba(83,199,167,.12);color:#bcebdc;font-weight:700;cursor:pointer;white-space:nowrap}.record-button:hover{background:rgba(83,199,167,.2)}.record-button.active{border-color:rgba(224,90,90,.7);background:rgba(224,90,90,.14);color:#f0a4a4}.record-button:disabled{opacity:.55;cursor:wait}
   .foot{color:var(--dim);font-size:13px;margin:16px 2px 0;text-align:center;flex:0 0 auto;letter-spacing:.2px}
   .off{color:#e05a5a}
   .empty{padding:40px 16px;text-align:center;color:var(--dim);line-height:1.8}
@@ -240,7 +243,7 @@
   /* 农场模式：单页综合驾驶舱 */
   .farm-app{background:linear-gradient(90deg,rgba(4,35,13,.88),rgba(4,48,16,.48)),url('https://images.unsplash.com/photo-1628352081506-83c43123ed6d?auto=format&fit=crop&w=2200&q=85') center/cover fixed}
   .farm-shell{max-width:1880px}.farm-top{gap:18px}.farm-title small{display:block;margin-top:4px;font-size:12px;font-weight:500;color:rgba(255,255,255,.72)}
-  .farm-icon-button{width:40px;height:40px;border:1px solid rgba(255,255,255,.45);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer}.farm-icon-button:hover,.farm-back:hover{background:rgba(255,255,255,.22)}
+  .farm-icon-button{width:40px;height:40px;border:1px solid rgba(255,255,255,.45);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer}.farm-icon-button:hover,.farm-back:hover{background:rgba(255,255,255,.22)}.farm-icon-button.recording{border-color:#ffc1c1;background:rgba(197,50,50,.72);box-shadow:0 0 0 4px rgba(197,50,50,.16)}
   .farm-wifi-wrap{position:relative}.farm-wifi-pop{display:none;position:fixed;z-index:60;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,calc(100vw - 36px));max-height:90vh;overflow:auto;padding:22px;border:0;border-radius:8px;background:#fff;color:#243227;box-shadow:0 24px 70px rgba(0,0,0,.35),0 0 0 100vmax rgba(4,19,8,.68)}.farm-wifi-pop.open{display:block}.farm-wifi-pop h4{margin:0 0 17px;font-size:20px}.farm-wifi-current{padding:10px;border:1px solid #b7dfbb;border-radius:7px;background:#f1fbf1;color:#237832;font-size:13px}.farm-wifi-current small{display:block;margin-top:3px;color:#5d7962}.farm-wifi-list{height:176px;overflow-y:scroll;scrollbar-gutter:stable;margin-top:8px;border:1px solid #e0e9e0;border-radius:7px}.farm-wifi-list .wifi-item{min-height:44px;color:#1d3022;padding:10px 11px}.farm-wifi-list .wifi-connect{background:#f7fbf7}.farm-wifi-actions{display:flex;gap:8px;margin-top:9px}.farm-wifi-actions button{flex:1;margin:0!important}.farm-hotspot-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #e2ebe2;font-size:13px}.farm-hotspot-toggle{position:relative;width:58px;height:30px;padding:0 7px 0 0;border:1px solid #b9cbb9;border-radius:16px;background:#e7eee7;color:#607064;cursor:pointer;font-size:10px;font-weight:800;text-align:right}.farm-hotspot-toggle:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.2s}.farm-hotspot-toggle.on{padding:0 0 0 8px;border-color:#43a84f;background:#43a84f;color:#fff;text-align:left}.farm-hotspot-toggle.on:after{left:31px}.farm-hotspot-toggle:disabled{opacity:.55;cursor:not-allowed}.farm-wifi-status{min-height:16px;margin-top:7px;color:#718076;font-size:11px}
   .farm-alerts{display:flex;gap:9px;overflow-x:auto;margin-top:14px;padding-bottom:2px}.farm-alert{display:flex;align-items:center;gap:7px;min-width:max-content;padding:8px 11px;border:1px solid rgba(255,255,255,.25);border-radius:7px;background:rgba(5,37,15,.7);color:#eaf6eb;font-size:12px}.farm-alert.good{border-color:rgba(112,226,120,.5)}.farm-alert.warn{border-color:rgba(244,194,86,.75);background:rgba(91,65,10,.76)}.farm-alert.bad{border-color:rgba(239,112,112,.72);background:rgba(83,22,22,.78)}
   .farm-layout{grid-template-columns:minmax(210px,15vw) minmax(560px,1fr) minmax(280px,20vw);align-items:stretch;margin-top:14px}.farm-card{border-radius:8px}.farm-field{min-height:260px}.farm-pin{height:178px}.farm-device{padding:17px}.farm-panel{padding:18px}.farm-head{margin-bottom:12px}.farm-head-actions{display:flex;gap:8px}.farm-head-actions button{border:1px solid #d9e8da;border-radius:7px;background:#fff;color:#247b34;height:34px;padding:0 10px;cursor:pointer}.farm-refresh{border-radius:7px}.farm-sensors{grid-template-columns:repeat(4,minmax(110px,1fr));grid-auto-rows:minmax(94px,1fr)}.farm-sensor{min-height:94px;border-radius:7px;padding:12px}.farm-sensor.state-low,.farm-sensor.state-high,.farm-sensor.state-good{border-color:#e3ede3;background:linear-gradient(135deg,#fff,#f9fdf8)}.farm-sensor-state{margin-top:5px;font-size:11px;color:#79867c}.farm-sensor.state-low .farm-sensor-state,.farm-sensor.state-high .farm-sensor-state{color:#9c6814}.farm-metric{margin-top:10px;font-size:24px}.farm-health{padding:18px}.farm-health-grid{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}.farm-health p{margin:0;line-height:1.65}.farm-score{min-width:82px;text-align:center}.farm-score b{display:block;font-size:30px;color:#238b35}.farm-score span{font-size:11px;color:#718076}
@@ -321,6 +324,7 @@
 
   <!-- 面板1: 实时数据 (密集小格子, 传感器接上即在末尾自动出现) -->
   <div class="panel active" id="p-data">
+    <div class="data-tools"><div class="record-summary"><strong>五分钟数据记录</strong><span id="recordingStatus">正在读取记录状态…</span></div><button class="record-button" id="recordBtn" onclick="toggleRecording()">开始记录</button></div>
     <div id="grid" class="grid"></div>
     <div id="dataEmpty" class="empty" style="display:none">正在等待首批传感器数据…<br>接好线后最多 10 秒自动出现</div>
     <div class="foot" id="foot">连接中…</div>
@@ -460,7 +464,7 @@
 </div>
 
 <div class="farm-view" id="farmView"><main class="farm-app"><div class="farm-shell">
-  <header class="farm-top"><div class="farm-brand"><span class="farm-mark">🌿</span><span class="farm-title">智慧农业平台<small id="farmSubTitle">农田综合驾驶舱</small></span></div><div class="farm-tools"><button class="farm-icon-button" title="刷新全部数据" onclick="farmRefresh()">↻</button><div class="farm-wifi-wrap"><button class="farm-icon-button" title="联网设置" aria-label="联网设置" onclick="toggleFarmWifi(event)">📶</button><div class="farm-wifi-pop" id="farmWifiPanel" onclick="event.stopPropagation()"><h4>无线网络</h4><div class="farm-wifi-current" id="farmWifiCurrent">正在读取连接状态…</div><div class="farm-wifi-list" id="farmWifiList"><div style="padding:12px;color:#718076;font-size:12px">点击扫描查找附近网络</div></div><div class="farm-wifi-actions"><button class="btn sm" onclick="scanFarmWifi()">↻ 扫描网络</button></div><div class="farm-hotspot-row"><span>设备热点</span><button class="farm-hotspot-toggle" id="farmHotspotToggle" onclick="toggleFarmHotspot()">开启热点</button></div><div class="farm-wifi-status" id="farmWifiStatus"></div></div></div><button class="farm-back" onclick="setViewMode('classic')">经典模式</button><div class="farm-online" id="farmConnection"><i class="farm-dot"></i><span id="farmConnectionText">连接中</span></div></div></header>
+  <header class="farm-top"><div class="farm-brand"><span class="farm-mark">🌿</span><span class="farm-title">智慧农业平台<small id="farmSubTitle">农田综合驾驶舱</small></span></div><div class="farm-tools"><button class="farm-icon-button" id="farmRecordBtn" title="开始五分钟数据记录" aria-label="开始五分钟数据记录" onclick="toggleRecording()">●</button><button class="farm-icon-button" title="刷新全部数据" onclick="farmRefresh()">↻</button><div class="farm-wifi-wrap"><button class="farm-icon-button" title="联网设置" aria-label="联网设置" onclick="toggleFarmWifi(event)">📶</button><div class="farm-wifi-pop" id="farmWifiPanel" onclick="event.stopPropagation()"><h4>无线网络</h4><div class="farm-wifi-current" id="farmWifiCurrent">正在读取连接状态…</div><div class="farm-wifi-list" id="farmWifiList"><div style="padding:12px;color:#718076;font-size:12px">点击扫描查找附近网络</div></div><div class="farm-wifi-actions"><button class="btn sm" onclick="scanFarmWifi()">↻ 扫描网络</button></div><div class="farm-hotspot-row"><span>设备热点</span><button class="farm-hotspot-toggle" id="farmHotspotToggle" onclick="toggleFarmHotspot()">开启热点</button></div><div class="farm-wifi-status" id="farmWifiStatus"></div></div></div><button class="farm-back" onclick="setViewMode('classic')">经典模式</button><div class="farm-online" id="farmConnection"><i class="farm-dot"></i><span id="farmConnectionText">连接中</span></div></div></header>
   <div class="farm-alerts" id="farmAlerts"><div class="farm-alert">正在检查农田状态…</div></div>
   <section class="farm-layout">
     <aside class="farm-col farm-left"><section class="farm-card farm-field"><h3>◉ 农田定位</h3><div class="farm-pin"><b>⌖</b><span id="farmLocation">等待北斗有效定位</span></div></section><section class="farm-card farm-device"><h3>设备状态</h3><div class="farm-row"><span>连接状态</span><b id="farmOnline">--</b></div><div class="farm-row"><span>北斗卫星</span><b id="farmSats">--</b></div><div class="farm-row"><span>设备编号</span><b id="farmDevice">--</b></div><div class="farm-row"><span>设备 IP</span><b id="farmIp">--</b></div><div class="farm-row"><span>Wi-Fi</span><b id="farmWifi">--</b></div></section></aside>
@@ -596,6 +600,47 @@ function fetchTO(url,opts,ms=4000){
   const c=new AbortController();
   const t=setTimeout(()=>c.abort(),ms);
   return fetch(url,Object.assign({signal:c.signal,cache:'no-store'},opts||{})).finally(()=>clearTimeout(t));
+}
+let recordingState={active:false,sample_count:0,can_export:false},recordingBusy=false,recordingNotice='',recordingExportPending=false;
+function recordingCountdown(timestamp){
+  const seconds=Math.max(0,Math.ceil(Number(timestamp||0)-Date.now()/1000));
+  const minutes=Math.floor(seconds/60),rest=seconds%60;
+  return (minutes?minutes+'分':'')+rest+'秒';
+}
+function renderRecordingState(){
+  const count=Number(recordingState.sample_count||0),active=!!recordingState.active;
+  let status='尚未开始记录';
+  if(recordingNotice)status=recordingNotice;
+  else if(active)status=count?'记录中 · 已记录 '+count+' 条 · '+recordingCountdown(recordingState.next_sample_at)+'后采样':'记录中 · 等待首批设备数据';
+  else if(count)status='已停止 · 共记录 '+count+' 条';
+  const statusEl=$('recordingStatus'),button=$('recordBtn'),farmButton=$('farmRecordBtn');
+  if(statusEl)statusEl.textContent=status;
+  if(button){button.textContent=active?'■ 停止并导出':(recordingExportPending?'↓ 重试导出':'● 开始记录');button.classList.toggle('active',active);button.disabled=recordingBusy;}
+  if(farmButton){farmButton.textContent=active?'■':(recordingExportPending?'↓':'●');farmButton.classList.toggle('recording',active);farmButton.disabled=recordingBusy;farmButton.title=active?('停止记录并导出 Excel，当前 '+count+' 条'):(recordingExportPending?'重试导出 Excel':'开始五分钟数据记录');farmButton.setAttribute('aria-label',farmButton.title);}
+}
+async function loadRecording(){
+  try{const response=await fetchTO('/recording/status'),data=await response.json();if(response.ok){recordingState=data;recordingNotice='';renderRecordingState();}}
+  catch(e){if(!recordingState.sample_count&&!recordingState.active){recordingNotice='记录服务暂时不可用';renderRecordingState();}}
+}
+async function downloadRecording(){
+  const response=await fetchTO('/recording/export',undefined,60000);
+  if(!response.ok)throw new Error('export_failed');
+  const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');
+  const disposition=response.headers.get('Content-Disposition')||'',match=disposition.match(/filename="?([^";]+)"?/i);
+  link.href=url;link.download=match?match[1]:'zhirun-data.xlsx';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function toggleRecording(){
+  if(recordingBusy)return;
+  if(recordingExportPending){recordingBusy=true;recordingNotice='正在重新生成 Excel…';renderRecordingState();try{await downloadRecording();recordingExportPending=false;recordingNotice='已导出 '+recordingState.sample_count+' 条五分钟数据';}catch(e){recordingNotice='导出失败，请稍后重试';}finally{recordingBusy=false;renderRecordingState();}return;}
+  const wasActive=!!recordingState.active;
+  recordingBusy=true;recordingNotice=wasActive?'正在生成 Excel…':'正在开始记录…';renderRecordingState();
+  try{
+    const response=await fetchTO(wasActive?'/recording/stop':'/recording/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.message||'request_failed');
+    recordingState=data;recordingNotice='';
+    if(wasActive&&data.can_export){await downloadRecording();recordingNotice='已导出 '+data.sample_count+' 条五分钟数据';}
+  }catch(e){const failureNotice=e.message==='no_device_data'?'暂未收到设备数据，无法开始记录':(wasActive?'导出失败，请稍后重试':'开始记录失败，请稍后重试');await loadRecording();recordingExportPending=wasActive&&!recordingState.active&&recordingState.can_export;recordingNotice=failureNotice;}
+  finally{recordingBusy=false;renderRecordingState();}
 }
 function publicServiceBase(){
   if(cfg.frontend_source!=='device'||!cfg.server)return'';
@@ -931,6 +976,7 @@ async function boot(){
   syncModelInputs();
   await loadCfg();           // 失败也不抛, 内部已 catch
   await loadSchema();        // 同上; 即使空 schema 也先把空网格建好, 不留白屏
+  await loadRecording();
   if(!gridBuilt)buildGrid();
   tick();
   // 首次/待配置态默认打开联网页, 否则默认实时数据页
@@ -938,7 +984,7 @@ async function boot(){
   setViewMode(localStorage.getItem('zhirun-view')==='farm'?'farm':'classic');
 }
 // 轮询: 页面可见时跑, 隐藏时停掉省资源; 回前台立刻补一帧再继续
-let _t={schema:null,tick:null,cfg:null,valve:null,weather:null};
+let _t={schema:null,tick:null,cfg:null,valve:null,weather:null,recording:null,recordClock:null};
 function startPolling(){
   if(_t.schema)return;
   _t.schema=setInterval(loadSchema,10000);
@@ -946,11 +992,13 @@ function startPolling(){
   _t.cfg=setInterval(loadCfg,15000);
   _t.valve=setInterval(()=>{if(document.body.classList.contains('farm-mode')||document.querySelector('#p-valve.panel.active'))loadValve();},2000);
   _t.weather=setInterval(()=>{if(document.querySelector('#p-weather.panel.active'))loadWeather();},60000);
+  _t.recording=setInterval(loadRecording,10000);
+  _t.recordClock=setInterval(renderRecordingState,1000);
 }
 function stopPolling(){for(const k in _t){clearInterval(_t[k]);_t[k]=null;}}
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden)stopPolling();
-  else{tick();loadCfg();startPolling();}
+  else{tick();loadCfg();loadRecording();startPolling();}
 });
 window.addEventListener('online',()=>{tick();loadCfg();startPolling();});
 window.addEventListener('offline',()=>{$('foot').textContent='网络已断开，等待恢复…';$('foot').className='foot off';});
