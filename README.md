@@ -5,12 +5,16 @@
 ## Architecture
 
 ```text
-Browser <-> Public server <-> Atlas 200I DK A2 <-> USB serial <-> ESP32 pump controller
-                                  |
-                                  +-> RS485 environmental sensors
+Browser <-> Public server <-> router <-> Atlas 200I DK A2 <-> USB serial <-> ESP32 pump controller
+                                          |
+                                          +-> RS485 environmental sensors
 ```
 
-ESP32 is the authoritative source for pump state. The Atlas forwards sensor and control messages, and the public server relays commands and stores the latest state.
+The collector and public upload client both run on the Atlas. The Atlas uses
+its router-facing Ethernet interface to upload directly to the public server;
+a developer PC is not part of the runtime data path. ESP32 is the authoritative
+source for pump state. The Atlas forwards sensor and control messages, and the
+public server relays commands and stores the latest state.
 
 ## Repository Layout
 
@@ -43,6 +47,19 @@ python server/zhirun_server.py
 ```
 
 4. Deploy the Atlas collector with `edge/deploy/zhirun-atlas-collector.service`.
+
+The Atlas configuration must set `ZHIRUN_ATLAS_SERVER` to the public service,
+not to a PC-side relay. Verify the runtime route with:
+
+```bash
+ip route get 47.92.195.5
+curl --interface eth0 -I http://47.92.195.5/
+```
+
+Some Atlas images run ConnMan alongside Netplan. If ConnMan manages the
+PC-facing `eth1`, disable IPv4 for that ConnMan service so it cannot replace
+the router default route. Keep the static Netplan address on `eth1` for local
+maintenance, and confirm that `ip route get 47.92.195.5` selects `eth0`.
 
 ## Security
 
