@@ -311,7 +311,7 @@
 <div class="top">
   <div class="hd">
     <div><h1 id="devName">环境实时监测</h1><div class="mode" id="devSub">连接中…</div></div>
-    <div class="header-actions" id="classicHeaderActions"><button class="record-button" id="recordBtn" title="开始五分钟数据记录" aria-label="开始五分钟数据记录" onclick="toggleRecording()">五分钟数据记录</button><button class="style-switch" onclick="setViewMode('farm')">农场模式</button><span class="badge" id="modeBadge">…</span></div>
+    <div class="header-actions" id="classicHeaderActions"><button class="record-button" id="recordBtn" title="开始数据记录" aria-label="开始数据记录" onclick="toggleRecording()">数据记录</button><button class="style-switch" onclick="setViewMode('farm')">农场模式</button><span class="badge" id="modeBadge">…</span></div>
   </div>
   <div class="tabs">
     <button class="tab active" data-p="data" onclick="tab('data')">数据</button>
@@ -614,7 +614,7 @@ function renderRecordingState(){
   else if(active)status=count?'记录中 · 已记录 '+count+' 条 · '+recordingCountdown(recordingState.next_sample_at)+'后采样':'记录中 · 等待首批设备数据';
   else if(count)status='已停止 · 共记录 '+count+' 条';
   const button=$('recordBtn');
-  if(button){button.textContent=active?'停止并导出':(recordingExportPending?'重试导出':'五分钟数据记录');button.classList.toggle('active',active);button.disabled=recordingBusy;button.title=status+'；'+(active?'点击停止并导出 Excel':(recordingExportPending?'点击重试导出 Excel':'点击开始记录'));button.setAttribute('aria-label',button.title);}
+  if(button){button.textContent=active?'停止并导出':(recordingExportPending?'重试导出':'数据记录');button.classList.toggle('active',active);button.disabled=recordingBusy;button.title=status+'；'+(active?'点击停止并导出 Excel':(recordingExportPending?'点击重试导出 Excel':'点击开始数据记录'));button.setAttribute('aria-label',button.title);}
 }
 async function loadRecording(){
   try{const response=await fetchTO('/recording/status'),data=await response.json();if(response.ok){recordingState=data;recordingNotice='';renderRecordingState();}}
