@@ -772,7 +772,10 @@ class Handler(BaseHTTPRequestHandler):
                 device_id = current_device_id(requested_device_id)
                 if path == "/schema":
                     if device_id is None:
-                        self.send_json(200, [])
+                        # Keep the dashboard useful before the first Atlas
+                        # frame arrives. Values remain empty, but the fixed
+                        # schema lets the UI show which sensors are expected.
+                        self.send_json(200, FIXED_FIELDS)
                         return
                     device = _devices.get(device_id, {})
                     latest = _latest_by_device.get(device_id, {})
