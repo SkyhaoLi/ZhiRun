@@ -56,14 +56,14 @@ The Atlas configuration must set `ZHIRUN_ATLAS_SERVER` to the public service,
 not to a PC-side relay. Verify the runtime route with:
 
 ```bash
-ip route get 47.92.195.5
-curl --interface eth0 -I http://47.92.195.5/
+ip route get 8.145.49.45
+curl --interface eth0 -I http://8.145.49.45/
 ```
 
 Some Atlas images run ConnMan alongside Netplan. If ConnMan manages the
 PC-facing `eth1`, disable IPv4 for that ConnMan service so it cannot replace
 the router default route. Keep the static Netplan address on `eth1` for local
-maintenance, and confirm that `ip route get 47.92.195.5` selects `eth0`.
+maintenance, and confirm that `ip route get 8.145.49.45` selects `eth0`.
 
 ## Security
 

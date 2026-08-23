@@ -30,7 +30,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = "/etc/zhirun-atlas.env"
 DEFAULTS = {
-    "ZHIRUN_ATLAS_SERVER": "http://127.0.0.1:10000",
+    "ZHIRUN_ATLAS_SERVER": "http://8.145.49.45:10000",
     "ZHIRUN_ATLAS_TOKEN": "",
     "ZHIRUN_ATLAS_DEVICE_ID": "atlas-200i-dk-a2",
     "ZHIRUN_ATLAS_DEVICE_NAME": "Atlas 200I DK A2",

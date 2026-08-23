@@ -1,0 +1,19 @@
+[Unit]
+Description=ZhiRun fertigation inference service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zhirun
+Group=zhirun
+WorkingDirectory=/opt/zhirun
+Environment=PYTHONUNBUFFERED=1
+Environment=ZHIRUN_INFER_PORT=10001
+Environment=ZHIRUN_FERTIGATION_MODEL_DIR=/opt/zhirun/灌溉模型/灌溉模型
+ExecStart=/opt/zhirun/.venv/bin/python /opt/zhirun/server/infer_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

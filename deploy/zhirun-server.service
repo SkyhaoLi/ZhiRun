@@ -1,15 +1,17 @@
 [Unit]
-Description=ZhiRun local dashboard server
-Requires=zhirun-boot-prepare.service
-After=network.target zhirun-boot-prepare.service
+Description=ZhiRun public dashboard server
+After=network-online.target
+Wants=network-online.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=HwHiAiUser
+User=zhirun
+Group=zhirun
 WorkingDirectory=/opt/zhirun
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 /opt/zhirun/server/zhirun_server.py
+EnvironmentFile=-/etc/zhirun/server.env
+ExecStart=/opt/zhirun/.venv/bin/python /opt/zhirun/server/zhirun_server.py
 Restart=always
 RestartSec=5
 TimeoutStopSec=15
