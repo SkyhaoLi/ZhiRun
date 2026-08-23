@@ -47,7 +47,7 @@ pio run
 python server/zhirun_server.py
 ```
 
-4. Deploy the Atlas collector with `edge/deploy/zhirun-atlas-collector.service`.
+4. Deploy the Atlas collector with `deploy/zhirun-atlas-collector.service`.
 
 For the production Atlas boot and recovery setup, install the scripts and units
 from `deploy/` as documented in `deploy/README.md`.

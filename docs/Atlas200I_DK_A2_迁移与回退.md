@@ -22,7 +22,7 @@ Atlas 200I DK A2 通过一个 USB-RS485 适配器采集土壤、百叶盒和风�
 |---|---|
 | `edge/atlas200i_collector.py` | RS485 轮询、GPIO 雨量计数和上报 |
 | `.env.atlas.example` | Atlas 配置模板 |
-| `edge/deploy/zhirun-atlas-collector.service` | systemd 服务模板 |
+| `deploy/zhirun-atlas-collector.service` | systemd 服务模板 |
 | `server/zhirun_server.py` | Atlas 实时数据服务 |
 | `server/index.html` | 实时展示页面 |
 
