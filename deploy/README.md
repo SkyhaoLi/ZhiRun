@@ -16,6 +16,9 @@ systemctl daemon-reload
 systemctl enable --now zhirun-server.service zhirun-infer.service
 ```
 
+To expose the dashboard on the standard HTTP port, install
+`deploy/nginx-zhirun.conf` as an Nginx site and reload Nginx.
+
 Set `ZHIRUN_PUSH_TOKEN` in `/etc/zhirun/server.env` if Atlas upload
 authentication is enabled.
 For the repository deployment helpers, copy `deploy/server.env.example` to the
