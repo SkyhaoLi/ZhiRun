@@ -1,7 +1,7 @@
 # Local secrets and deployment configuration
 .env
 .env.*
-!.env.atlas.example
+!.env.rk3506.example
 edge/*-remote.env
 esp32_pump_controller/secrets.h
 *.secret

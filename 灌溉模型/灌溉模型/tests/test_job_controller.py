@@ -10,39 +10,43 @@ def dry_potato_decision():
 
 
 class JobTests(unittest.TestCase):
-    def test_npk_job_created(self):
+    def test_npk_job_uses_three_independent_meters(self):
         job = build_job(1.0, dry_potato_decision())
-        self.assertGreater(job["target_main_water_l"], 0)
-        self.assertEqual([d["valve"] for d in job["doses"]], ["A", "B", "C"])
-        for phase in job["phases"]:
-            self.assertLessEqual(len(set(phase["open_valves"]) & {"A", "B", "C"}), 1)
+        self.assertEqual([dose["flow_meter"] for dose in job["doses"]], ["N_FLOW", "P_FLOW", "K_FLOW"])
+        self.assertEqual(job["phases"][0]["state"], "DOSE_PARALLEL")
+        self.assertEqual(job["phases"][1]["state"], "OUTLET_TRANSFER")
 
-    def test_no_irrigation_means_no_dose(self):
-        decision = recommend("玉米", "抽雄吐丝", [25, 25, 25], 28, 20, 5.0, 8)
-        job = build_job(2.0, decision)
-        self.assertEqual(job["target_main_water_l"], 0)
-        self.assertEqual(job["doses"], [])
-
-    def test_main_no_flow_fault(self):
-        job = build_job(1.0, dry_potato_decision())
-        c = FlowController(job, HARDWARE)
-        f = SensorFrame(0, 0, {"A": 0, "B": 0, "C": 0}, {"A": 0, "B": 0, "C": 0})
-        c.start_with_baseline(f)
-        out = c.update(f)
-        self.assertEqual(c.state, State.FAULT)
-        self.assertFalse(any(out.as_dict().values()))
-
-    def test_dose_no_flow_fault(self):
+    def test_each_pump_stops_at_its_own_target_then_outlet_starts(self):
         job = build_job(0.01, dry_potato_decision())
-        c = FlowController(job, HARDWARE)
-        f = SensorFrame(0, 60, {"A": 0, "B": 0, "C": 0}, {"A": 0, "B": 0, "C": 0})
-        c.start_with_baseline(f)
-        # 小面积预冲洗下限被总水量限制，第一帧推进到A，下一帧检查肥路。
-        c.update(SensorFrame(job["phases"][0]["main_water_target_l"], 60,
-                             {"A": 0, "B": 0, "C": 0}, {"A": 0, "B": 0, "C": 0}))
-        c.update(SensorFrame(job["phases"][0]["main_water_target_l"] + 1, 60,
-                             {"A": 0, "B": 0, "C": 0}, {"A": 0, "B": 0, "C": 0}))
-        self.assertEqual(c.state, State.FAULT)
+        controller = FlowController(job, HARDWARE)
+        frame = SensorFrame(dose_total_l={"A": 0, "B": 0, "C": 0},
+                            dose_flow_l_min={"A": 1, "B": 1, "C": 1})
+        outputs = controller.start(frame)
+        self.assertTrue(outputs.n_pump and outputs.p_pump and outputs.k_pump)
+        targets = job["targets_l"]
+        outputs = controller.update(SensorFrame(
+            dose_total_l={"A": targets["N"], "B": 0, "C": 0},
+            dose_flow_l_min={"A": 0, "B": 1, "C": 1},
+        ))
+        self.assertFalse(outputs.n_pump)
+        self.assertTrue(outputs.p_pump and outputs.k_pump)
+        outputs = controller.update(SensorFrame(
+            dose_total_l={"A": targets["N"], "B": targets["P"], "C": targets["K"]},
+            dose_flow_l_min={"A": 0, "B": 0, "C": 0},
+        ))
+        self.assertEqual(controller.state, State.OUTLET)
+        self.assertTrue(outputs.outlet_pump)
+        self.assertFalse(outputs.n_pump or outputs.p_pump or outputs.k_pump)
+
+    def test_flow_fault_turns_every_output_off(self):
+        job = build_job(0.01, dry_potato_decision())
+        controller = FlowController(job, HARDWARE)
+        outputs = controller.start(SensorFrame(
+            dose_total_l={"A": 0, "B": 0, "C": 0},
+            dose_flow_l_min={"A": 0, "B": 1, "C": 1},
+        ))
+        self.assertEqual(controller.state, State.FAULT)
+        self.assertFalse(any(outputs.as_dict().values()))
 
 
 if __name__ == "__main__":

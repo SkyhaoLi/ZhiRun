@@ -1,27 +1,29 @@
 {
   "warning": "以下母液浓度仅为仿真示例，上机前必须按化验/配制记录修改并用流量计标定。",
   "main": {
-    "minimum_flow_l_min": 20.0,
-    "maximum_flow_l_min": 200.0,
-    "no_flow_timeout_s": 8.0,
-    "preflush_fraction": 0.15,
-    "postflush_fraction": 0.20,
-    "minimum_preflush_l": 50.0,
-    "minimum_postflush_l": 100.0
+    "default_flow_l_min": 60.0
+  },
+  "outlet_pump": {
+    "minimum_duration_s": 1,
+    "maximum_duration_s": 7200
   },
   "fertilizer_lines": {
-    "A": {"nutrient": "N", "concentration_g_l": 100.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0},
-    "B": {"nutrient": "P2O5", "concentration_g_l": 80.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0},
-    "C": {"nutrient": "K2O", "concentration_g_l": 120.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0}
+    "A": {"pump": "N_PUMP", "flow_meter": "N_FLOW", "nutrient": "N", "concentration_g_l": 100.0, "pulses_per_liter": 450.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0},
+    "B": {"pump": "P_PUMP", "flow_meter": "P_FLOW", "nutrient": "P2O5", "concentration_g_l": 80.0, "pulses_per_liter": 450.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0},
+    "C": {"pump": "K_PUMP", "flow_meter": "K_FLOW", "nutrient": "K2O", "concentration_g_l": 120.0, "pulses_per_liter": 450.0, "minimum_flow_l_min": 0.05, "maximum_flow_l_min": 5.0}
   },
   "control": {
     "require_fertilizer_flow_meters": true,
+    "parallel_fertilizer_pumps": true,
+    "no_flow_timeout_s": 8.0,
+    "maximum_dose_runtime_s": 1800,
     "dose_tolerance_fraction": 0.03,
-    "inter_tank_flush_l": 20.0,
     "maximum_injection_ec_ds_m": 2.5,
+    "minimum_tank_level_pct": 5.0,
+    "minimum_pressure_bar": 0.5,
+    "maximum_pressure_bar": 8.0,
     "maximum_event_n_kg_mu": 2.5,
     "maximum_event_p2o5_kg_mu": 1.5,
-    "maximum_event_k2o_kg_mu": 3.0,
-    "one_fertilizer_valve_at_a_time": true
+    "maximum_event_k2o_kg_mu": 3.0
   }
 }

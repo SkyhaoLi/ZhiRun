@@ -1,0 +1,20 @@
+{
+  "observation_time": "2026-07-20T08:00:00+08:00",
+  "air_temperature_c": 25.0,
+  "air_humidity_pct": 45.0,
+  "co2_ppm": 420.0,
+  "soil_moisture_pct": {"20": 10.0, "40": 12.0, "60": 14.0},
+  "soil_temperature_c": 22.0,
+  "soil_n_mg_kg": 800.0,
+  "soil_p_mg_kg": 10.0,
+  "soil_k_mg_kg": 80.0,
+  "wind_speed_m_s": 2.0,
+  "light_lux": 30000.0,
+  "rain_24h_mm": 0.0,
+  "rain_next_2d_mm": 0.0,
+  "eto_forecast_mm": 5.5,
+  "soil_ph": 8.0,
+  "soil_ec_ds_m": 1.0,
+  "days_since_fertigation": 8,
+  "source": {"sensors": "example; replace with calibrated Modbus/serial adapter"}
+}

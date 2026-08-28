@@ -1,0 +1,30 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          zhirun-rk3506-collector
+# Required-Start:    networking
+# Default-Start:     2 3 4 5
+# Short-Description: ZhiRun RK3506B edge collector
+### END INIT INFO
+
+APP=/oem/usr/bin/rk3506_collector.py
+CONFIG=/etc/zhirun-rk3506.env
+PID=/var/run/zhirun-rk3506-collector.pid
+LOG=/userdata/zhirun-rk3506-collector.log
+
+case "$1" in
+  start)
+    [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null && exit 0
+    mkdir -p "$(dirname "$LOG")"
+    nohup /usr/bin/python3 -u "$APP" --config "$CONFIG" >>"$LOG" 2>&1 &
+    echo $! > "$PID"
+    ;;
+  stop)
+    [ -f "$PID" ] && kill "$(cat "$PID")" 2>/dev/null || true
+    rm -f "$PID"
+    ;;
+  restart) "$0" stop; sleep 1; "$0" start ;;
+  status)
+    [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null
+    ;;
+  *) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac

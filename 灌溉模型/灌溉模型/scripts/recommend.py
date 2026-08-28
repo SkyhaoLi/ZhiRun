@@ -38,13 +38,20 @@ def recommend(
     soil_test_n_level: str = "medium",
     soil_test_p_level: str = "medium",
     soil_test_k_level: str = "medium",
+    trigger_fc_override: float | None = None,
+    target_fc_override: float | None = None,
 ) -> dict:
     crop_cfg = CONFIG["crops"][crop]
     stage_cfg = crop_cfg["stages"][stage]
     root_moisture = weighted_root_moisture(moisture, stage_cfg["root_depth_m"])
     rel_fc = root_moisture / field_capacity
-    trigger = stage_cfg["trigger_fc"]
-    target_vwc = stage_cfg["target_fc"] * field_capacity
+    trigger = stage_cfg["trigger_fc"] if trigger_fc_override is None else float(trigger_fc_override)
+    target_fc = stage_cfg["target_fc"] if target_fc_override is None else float(target_fc_override)
+    if not 0.4 <= trigger <= 0.9:
+        raise ValueError("trigger_fc_override必须在0.4到0.9之间")
+    if not 0.5 <= target_fc <= 0.95 or target_fc < trigger:
+        raise ValueError("target_fc_override必须不小于trigger_fc_override且在0.5到0.95之间")
+    target_vwc = target_fc * field_capacity
     root_deficit_mm = max(0.0, (target_vwc - root_moisture) / 100 * stage_cfg["root_depth_m"] * 1000)
     et_need_mm = max(0.0, stage_cfg["kc"] * eto_mm - rain_forecast_mm * CONFIG["defaults"]["effective_rain_fraction"])
     should_irrigate = rel_fc <= trigger and rain_forecast_mm < max(5.0, et_need_mm)
@@ -78,7 +85,8 @@ def recommend(
         "stage": stage,
         "root_zone_moisture_pct": round(root_moisture, 2),
         "relative_field_capacity": round(rel_fc, 3),
-        "trigger_relative_fc": trigger,
+        "trigger_relative_fc": round(trigger, 3),
+        "target_relative_fc": round(target_fc, 3),
         "irrigate": should_irrigate,
         "irrigation_m3_mu": round(irrigation, 1),
         "fertigate": fertigation_due,

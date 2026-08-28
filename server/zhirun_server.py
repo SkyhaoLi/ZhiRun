@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """智润环境监测服务。
 
-服务端保持纯标准库实现, 接收 Atlas 的 /push 上报, 对外提供
+服务端保持纯标准库实现, 接收 RK3506B 的 /push 上报, 对外提供
 实时数据页 /data、字段布局 /schema、设备状态 /config 与历史缓存。
 """
 import io
@@ -51,8 +51,8 @@ RECORDING_LIMIT = 105120  # Five-minute samples for one year.
 LEGACY_DEVICE_ID = "legacy-default"
 
 # ---- 固定字段布局 ------------------------------------------------------------
-# 本设备是环境监测设备, 字段固定为下面 12 项, 不随设备上报动态增减:
-# 无论设备某一帧发没发某个键, 这 12 格永远显示 (缺值显示 "--", 有值即实时更新)。
+# 本设备是环境监测设备, 字段固定为下面 13 项, 不随设备上报动态增减:
+# 无论设备某一帧发没发某个键, 这 13 格永远显示 (缺值显示 "--", 有值即实时更新)。
 # group: headline=顶部大数字, sensor=传感器网格。digits=小数位。
 FIELDS_LIST = [
     ("airTemp",   "空气温度",  "°C",      "headline", 1),
@@ -62,31 +62,26 @@ FIELDS_LIST = [
     ("soilMoist", "土壤水分",  "%",       "sensor",   1),
     ("soilTemp",  "土壤温度",  "°C",      "sensor",   1),
     ("soilPH",    "土壤 PH",   "",        "sensor",   2),
+    ("soilEc",    "土壤 EC",   "dS/m",    "sensor",   2),
     ("windSpeed", "瞬时风速",  "m/s",     "sensor",   1),
     ("n",         "氮 N",      "mg/kg",   "sensor",   0),
     ("p",         "磷 P",      "mg/kg",   "sensor",   0),
     ("k",         "钾 K",      "mg/kg",   "sensor",   0),
     ("rainMm",    "雨量",      "mm/24h",  "sensor",   1),
-    ("latitude",  "北斗纬度",  "°",       "sensor",   6),
-    ("longitude", "北斗经度",  "°",       "sensor",   6),
-    ("gpsSatellites", "北斗卫星数", "颗", "sensor",   0),
-    ("gpsSpeed",  "北斗速度",  "km/h",    "sensor",   1),
-    ("gpsConnected", "北斗通信", "",       "sensor",   0),
-    ("gpsFixQuality", "北斗定位质量", "", "sensor",   0),
 ]
-# 固定 schema: 每台设备都用同一套 12 字段布局, 与设备上报的 fields 无关
+# 固定 schema: 每台设备都用同一套 13 字段布局, 与设备上报的 fields 无关
 FIXED_FIELDS = [
     {"key": k, "label": lab, "unit": u, "group": g, "digits": d}
     for (k, lab, u, g, d) in FIELDS_LIST
 ]
 FIXED_KEYS = [f["key"] for f in FIXED_FIELDS]
 
-# 纯内部字段, 不参与展示 (aiAge 新鲜度; rainTips 翻斗原始计数, 已由 rainMm 换算)
-IGNORE_KEYS = {"aiAge", "aiMemTotal", "rainTips"}
+# 翻斗原始计数只用于计算雨量, 不作为独立参数展示。
+IGNORE_KEYS = {"rainTips"}
 
 
 def resolve_fields(device, latest):
-    """返回固定的 12 项环境字段布局。
+    """返回固定的 13 项环境字段布局。
 
     不再依赖设备上报的 fields, 也不再因某帧缺失而增删字段——布局恒定,
     每格的数值由 /data 提供 (有值实时刷新, 无值显示 --)。
@@ -131,10 +126,17 @@ def load_state():
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             state = json.load(f)
-        _devices.update(state.get("devices", {}))
-        _latest_by_device.update(state.get("latest", {}))
-        _history_by_device.update(state.get("history", {}))
-        _recordings_by_device.update(state.get("recordings", {}))
+        devices = state.get("devices", {})
+        allowed_ids = {
+            device_id for device_id, metadata in devices.items()
+            if isinstance(metadata, dict) and metadata.get("source") == "rk3506"
+        }
+        _devices.update({key: value for key, value in devices.items() if key in allowed_ids})
+        _latest_by_device.update({key: value for key, value in state.get("latest", {}).items() if key in allowed_ids})
+        _history_by_device.update({key: value for key, value in state.get("history", {}).items() if key in allowed_ids})
+        _recordings_by_device.update({key: value for key, value in state.get("recordings", {}).items() if key in allowed_ids})
+        if len(allowed_ids) != len(devices):
+            mark_dirty()
     except Exception as exc:
         print("状态文件读取失败, 将从空状态启动:", exc, file=sys.stderr)
 
@@ -258,9 +260,9 @@ def current_device_id(requested_device_id=None):
         return safe_device_id(requested_device_id)
     if REALTIME_DEVICE_ID:
         return safe_device_id(REALTIME_DEVICE_ID)
-    # Atlas 200I DK A2 reports directly to /push. The public page selects Atlas
-    # unless a specific source is explicitly configured.
-    allowed_sources = {REALTIME_SOURCE} if REALTIME_SOURCE else {"atlas"}
+    # The RK3506B edge controller reports directly to /push. The public page
+    # selects it unless a specific source/device is explicitly configured.
+    allowed_sources = {REALTIME_SOURCE} if REALTIME_SOURCE else {"rk3506"}
     candidates = [
         device_id for device_id, device in _devices.items()
         if device.get("source") in allowed_sources
@@ -271,27 +273,31 @@ def current_device_id(requested_device_id=None):
 
 
 def current_valve_device_id():
-    """Prefer the Atlas USB relay when it is the configured valve controller."""
+    """Prefer the RK3506B edge relay controller when it is online."""
     candidates = [
         device_id for device_id, device in _devices.items()
         if "valve_control" in (device.get("capabilities") or [])
         and device_online(_latest_by_device.get(device_id, {}))
     ]
     if candidates:
-        atlas_candidates = [
+        rk3506_candidates = [
             device_id for device_id in candidates
-            if _devices.get(device_id, {}).get("source") == "atlas"
+            if _devices.get(device_id, {}).get("source") == "rk3506"
         ]
-        if atlas_candidates:
-            return max(atlas_candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
+        if rk3506_candidates:
+            return max(rk3506_candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
         return max(candidates, key=lambda device_id: _latest_by_device.get(device_id, {}).get("_ts", 0))
     return current_device_id()
 
 
 def valve_snapshot(device_id):
     state = dict(_valve_by_device.get(device_id, {}))
+    latest = _latest_by_device.get(device_id, {})
+    for key in ("wifiConnected", "wifiSsid"):
+        if key in latest:
+            state[key] = latest[key]
     state["device_id"] = device_id
-    state["online"] = device_online(_latest_by_device.get(device_id, {}))
+    state["online"] = device_online(latest)
     attempt = _network_attempt_by_device.get(device_id)
     if attempt:
         elapsed = now() - attempt["started_at"]
@@ -312,10 +318,22 @@ def queue_valve_command(device_id, action, params):
         return None
     # Manual controls force manual ownership. Drop stale control commands so a
     # delayed close/mode/config cannot override the latest manual intent.
-    if action == "manual":
+    if action in {"manual", "fertigation_start", "fertigation_stop"}:
         pending = _valve_commands_by_device.get(device_id, [])
         _valve_commands_by_device[device_id] = [
-            item for item in pending if item.get("action") not in {"manual", "mode", "config"}
+            item for item in pending
+            if item.get("action") not in {
+                "manual", "mode", "pump_test", "fertigation_start", "fertigation_stop"
+            }
+        ]
+    elif action == "pump_test":
+        # Keep independent N/P/K actions, but discard an older pending action
+        # for the same pump so rapid start/stop clicks cannot apply out of order.
+        pending = _valve_commands_by_device.get(device_id, [])
+        pump = params.get("pump")
+        _valve_commands_by_device[device_id] = [
+            item for item in pending
+            if item.get("action") != "pump_test" or item.get("pump") != pump
         ]
     command = {"id": str(_next_valve_command_id), "action": action}
     command.update(params)
@@ -772,7 +790,7 @@ class Handler(BaseHTTPRequestHandler):
                 device_id = current_device_id(requested_device_id)
                 if path == "/schema":
                     if device_id is None:
-                        # Keep the dashboard useful before the first Atlas
+                        # Keep the dashboard useful before the first RK3506B
                         # frame arrives. Values remain empty, but the fixed
                         # schema lets the UI show which sensors are expected.
                         self.send_json(200, FIXED_FIELDS)
@@ -794,7 +812,7 @@ class Handler(BaseHTTPRequestHandler):
                     "mode": "normal" if online else "offline",
                     "device_id": device_id,
                     "device_name": device.get("device_name") or "环境实时监测",
-                    "ssid": device.get("ssid"),
+                    "ssid": latest.get("wifiSsid") or device.get("ssid"),
                     "ip": latest.get("networkIp") or device.get("ip"),
                     "network_type": latest.get("networkType") or device.get("network_type"),
                     "network_interface": latest.get("networkInterface"),
@@ -882,7 +900,56 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/fertigation/predict":
-            self.proxy_fertigation("/predict", obj)
+            # The model consumes the complete live environment. Start from the
+            # selected device frame, then let explicit request values override
+            # it for calibration or offline what-if calculations.
+            with _lock:
+                device_id = current_device_id(obj.get("device_id"))
+                model_input = dict(_latest_by_device.get(device_id, {})) if device_id else {}
+            model_input.update(obj)
+            self.proxy_fertigation("/predict", model_input)
+            return
+
+        if path in {"/fertigation/run", "/fertigation/stop"}:
+            params = {}
+            if path.endswith("/run"):
+                limits = {
+                    "n_target_l": 10000.0,
+                    "p_target_l": 10000.0,
+                    "k_target_l": 10000.0,
+                    "outlet_run_s": 7200.0,
+                }
+                try:
+                    for key, maximum in limits.items():
+                        value = float(obj.get(key, 0))
+                        if value < 0 or value > maximum:
+                            raise ValueError(key)
+                        params[key] = round(value, 3)
+                except (TypeError, ValueError):
+                    self.send_json(400, {"ok": False, "message": "invalid_fertigation_job"})
+                    return
+                if not any(params.values()):
+                    self.send_json(400, {"ok": False, "message": "empty_fertigation_job"})
+                    return
+                action = "fertigation_start"
+            else:
+                action = "fertigation_stop"
+            with _lock:
+                device_id = current_valve_device_id()
+                state = _valve_by_device.get(device_id, {}) if device_id else {}
+                schema = state.get("controllerSchema")
+                if action == "fertigation_start" and schema != "four_relay_independent_flow_v1":
+                    self.send_json(409, {"ok": False, "message": "four_relay_firmware_required"})
+                    return
+                if action == "fertigation_stop" and schema != "four_relay_independent_flow_v1":
+                    action = "manual"
+                    params = {"manual_action": "close"}
+                command = queue_valve_command(device_id, action, params)
+            if not command:
+                self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                return
+            self.send_json(202, {"ok": True, "queued": True,
+                                 "command_id": command["id"], "message": "command_queued"})
             return
 
         if path in {"/recording/start", "/recording/stop"}:
@@ -902,10 +969,33 @@ class Handler(BaseHTTPRequestHandler):
                 return
             device_id, metadata, payload = normalize_push(obj)
             source = str(obj.get("data_source") or "").strip().lower()
-            if source not in {"serial", "device", "atlas"}:
-                source = "legacy" if device_id == LEGACY_DEVICE_ID else "local"
+            if source != "rk3506":
+                self.send_json(400, {"ok": False, "message": "unsupported_source"})
+                return
             record_device(device_id, metadata, payload, source=source)
             self.send_json(200, {"ok": True, "device_id": device_id})
+            return
+
+        if path == "/pump/test":
+            pump = str(obj.get("pump") or "").strip().lower()
+            manual_action = str(obj.get("action") or "").strip().lower()
+            if pump not in {"n", "p", "k"} or manual_action not in {"open", "close"}:
+                self.send_json(400, {"ok": False, "message": "invalid_pump_test"})
+                return
+            with _lock:
+                device_id = current_valve_device_id()
+                state = _valve_by_device.get(device_id, {}) if device_id else {}
+                if state.get("controllerSchema") != "three_pump_test_rain_v1":
+                    self.send_json(409, {"ok": False, "message": "three_pump_firmware_required"})
+                    return
+                command = queue_valve_command(
+                    device_id, "pump_test", {"pump": pump, "manual_action": manual_action}
+                )
+            if not command:
+                self.send_json(503, {"ok": False, "message": "serial_device_offline"})
+                return
+            self.send_json(202, {"ok": True, "queued": True,
+                                 "command_id": command["id"], "message": "command_queued"})
             return
 
         if path in {"/valve/config", "/valve/mode", "/valve/manual"}:
@@ -913,7 +1003,10 @@ class Handler(BaseHTTPRequestHandler):
                 device_id = current_valve_device_id()
                 if path == "/valve/config":
                     action = "config"
-                    params = {key: obj[key] for key in ("on_th", "off_th", "min_run_s", "max_run_s", "active_high") if key in obj}
+                    params = {key: obj[key] for key in (
+                        "on_th", "off_th", "min_run_s", "max_run_s", "active_high",
+                        "n_pulses_per_l", "p_pulses_per_l", "k_pulses_per_l",
+                    ) if key in obj}
                 elif path == "/valve/mode":
                     action, params = "mode", {"mode": obj.get("mode")}
                 else:
@@ -990,7 +1083,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(400, {"error": "device_id_mismatch"})
                 return
             source = str(obj.get("data_source") or "").strip().lower()
-            record_device(device_id, metadata, payload, source=source if source in {"serial", "device"} else "local")
+            if source != "rk3506":
+                self.send_json(400, {"ok": False, "message": "unsupported_source"})
+                return
+            record_device(device_id, metadata, payload, source=source)
             self.send_json(200, {"ok": True, "device_id": device_id})
             return
 

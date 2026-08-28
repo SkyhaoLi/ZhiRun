@@ -1,39 +1,39 @@
-# ZhiRun Huawei Irrigation System
+# ZhiRun RK3506B Irrigation System
 
-农田环境监测、水肥决策与水泵控制项目。华为 Atlas 200I DK A2 采集传感器数据并通过 USB 串口控制 ESP32，ESP32 负责水泵，公网服务提供仪表盘和控制接口。
+农田环境监测、水肥决策与定量投料项目。RK3506B 采集 RS485 传感器并通过 USB 串口控制 ESP32-S3，ESP32-S3 根据三只独立流量计闭环控制 N/P/K 泵，再联锁启动混合罐出口泵。
 
 ## Architecture
 
 ```text
-Browser <-> Public server <-> router <-> Atlas 200I DK A2 <-> USB serial <-> ESP32 pump controller
-                                          |
-                                          +-> RS485 environmental sensors
+Browser <-> Public server <-> Wi-Fi <-> RK3506B <-> USB/CH341 <-> ESP32-S3
+                                      |                         |-- N/P/K pumps + 3 flow meters
+                                      |                         +-- mixing-tank outlet pump
+                                      +-> USB-RS485 environmental/rain sensors
 ```
 
-The collector and public upload client both run on the Atlas. The Atlas uses
-its router-facing Ethernet interface to upload directly to the public server;
-a developer PC is not part of the runtime data path. ESP32 is the authoritative
-source for pump state. The Atlas forwards sensor and control messages, and the
-public server relays commands and stores the latest state.
+The RK3506B collector reads the USB-RS485 bus and uploads directly to the
+public server over Wi-Fi or Ethernet. The ESP32 is the authoritative relay/pump
+controller; the RK3506B forwards sensor and control messages. The complete
+Python/ExtraTrees model runs only on the public server.
 
 ## Repository Layout
 
 | Path | Purpose |
 | --- | --- |
 | `server/` | Public dashboard, API relay, and fertigation inference service |
-| `edge/` | Atlas sensor collector, UART transport, and systemd unit |
-| `esp32_pump_controller/` | PlatformIO ESP32-S3 water-pump firmware |
+| `edge/` | RK3506B sensor collector and USB serial/RS485 transport |
+| `esp32_pump_controller/` | PlatformIO ESP32-S3 four-relay flow-control firmware |
 | `fertigation_model/` | Fertigation decision model, scripts, test cases, and datasets |
-| `docs/` | Atlas deployment and rollback guide |
+| `docs/` | RK3506B wiring and deployment notes |
 | `tools/` | Windows network/NAT helper scripts |
-| `deploy/` | Atlas boot preparation, systemd units, and self-healing checks |
-| `.env.atlas.example` | Atlas configuration template without secrets |
+| `deploy/` | Server units and RK3506B BusyBox init script |
+| `.env.rk3506.example` | RK3506B configuration template without secrets |
 
 The existing `灌溉模型/灌溉模型/` directory contains the fertigation model source. It is retained at its current path for compatibility; treat it as the `fertigation_model` component described above.
 
 ## Local Setup
 
-1. Copy `.env.atlas.example` to the Atlas configuration location and supply deployment-specific values.
+1. Copy `.env.rk3506.example` to `/etc/zhirun-rk3506.env` on the RK3506B and supply deployment-specific values.
 2. Build the ESP32 firmware:
 
 ```powershell
@@ -47,23 +47,21 @@ pio run
 python server/zhirun_server.py
 ```
 
-4. Deploy the Atlas collector with `deploy/zhirun-atlas-collector.service`.
+4. Install `edge/rk3506_collector.py` and `deploy/zhirun-rk3506-collector.init`
+   on the board, then enable the init script. The model is deployed only on
+   the public server using `deploy/zhirun-infer.service`.
 
-For the production Atlas boot and recovery setup, install the scripts and units
-from `deploy/` as documented in `deploy/README.md`.
-
-The Atlas configuration must set `ZHIRUN_ATLAS_SERVER` to the public service,
-not to a PC-side relay. Verify the runtime route with:
+The RK3506B configuration must set `ZHIRUN_SERVER` to the public service.
+Verify the runtime route with:
 
 ```bash
 ip route get 8.145.49.45
 curl --interface eth0 -I http://8.145.49.45/
 ```
 
-Some Atlas images run ConnMan alongside Netplan. If ConnMan manages the
-PC-facing `eth1`, disable IPv4 for that ConnMan service so it cannot replace
-the router default route. Keep the static Netplan address on `eth1` for local
-maintenance, and confirm that `ip route get 8.145.49.45` selects `eth0`.
+The RK3506B image uses BusyBox init rather than systemd. Keep the board's
+static Ethernet address and confirm that `ip route get 8.145.49.45` selects
+`eth0` before enabling automatic collection.
 
 ## Security
 

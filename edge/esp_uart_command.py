@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute one Atlas-to-ESP32 line command over a CH340 UART."""
+"""Execute one RK3506B-to-ESP32 line command over a UART."""
 import argparse
 import fcntl
 import json
@@ -33,7 +33,8 @@ def transact(port, command, reset=True):
         end = time.monotonic() + 0.6
         data = bytearray()
         while time.monotonic() < end:
-            ready, _, _ = select.select([fd], [], [], min(0.5, end - time.monotonic()))
+            wait = max(0.0, min(0.5, end - time.monotonic()))
+            ready, _, _ = select.select([fd], [], [], wait)
             if ready:
                 data.extend(os.read(fd, 1024))
                 # ESP32 prints a diagnostic "Command:" line before the JSON

@@ -1,8 +1,0 @@
-[Unit]
-Description=Check and recover ZhiRun services and H3C uplink
-After=zhirun-server.service zhirun-atlas-collector.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/zhirun-healthcheck
-TimeoutStartSec=35

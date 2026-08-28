@@ -1,0 +1,153 @@
+#!/bin/sh
+
+INTERFACE=wlan0
+CONFIG=/etc/wpa_supplicant.conf
+PERSISTENT_CONFIG=/userdata/zhirun-wpa.conf
+WPA_PIDFILE=/run/wpa_supplicant.wlan0.pid
+MONITOR_PIDFILE=/run/zhirun-wifi-monitor.pid
+LOGFILE=/userdata/zhirun-wifi.log
+CHECK_INTERVAL=5
+RESTART_AFTER=6
+MANAGEMENT_INTERFACE=eth0
+
+log_message() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
+
+prepare_config() {
+    if [ ! -f "$CONFIG" ]; then
+        rm -f "$CONFIG"
+        cp "$PERSISTENT_CONFIG" "$CONFIG" || return 1
+        chmod 600 "$CONFIG"
+    fi
+}
+
+stop_supplicant() {
+    wpa_cli -i "$INTERFACE" terminate >/dev/null 2>&1 || true
+    if [ -s "$WPA_PIDFILE" ]; then
+        kill "$(cat "$WPA_PIDFILE")" >/dev/null 2>&1 || true
+    fi
+    rm -f "$WPA_PIDFILE" "/var/run/wpa_supplicant/$INTERFACE"
+}
+
+start_supplicant() {
+    prepare_config || return 1
+    mkdir -p /var/run/wpa_supplicant
+    stop_supplicant
+    wpa_supplicant -B -i "$INTERFACE" -c "$CONFIG" -P "$WPA_PIDFILE"
+}
+
+monitor() {
+    trap 'current=$(cat "$MONITOR_PIDFILE" 2>/dev/null || true); [ "$current" = "$$" ] && rm -f "$MONITOR_PIDFILE"; exit 0' INT TERM EXIT
+    echo $$ > "$MONITOR_PIDFILE"
+
+    failures=0
+    was_connected=0
+    while true; do
+        if [ ! -d "/sys/class/net/$INTERFACE" ]; then
+            if [ "$was_connected" -eq 1 ]; then
+                log_message "$INTERFACE removed; waiting for device"
+            fi
+            failures=0
+            was_connected=0
+            sleep "$CHECK_INTERVAL"
+            continue
+        fi
+
+        prepare_config || {
+            log_message "Wi-Fi configuration is unavailable"
+            sleep "$CHECK_INTERVAL"
+            continue
+        }
+
+        ip link set "$INTERFACE" up >/dev/null 2>&1 || true
+        status=$(wpa_cli -i "$INTERFACE" status 2>/dev/null || true)
+        if printf '%s\n' "$status" | grep -q '^wpa_state=COMPLETED$'; then
+            if [ "$was_connected" -eq 0 ]; then
+                ssid=$(printf '%s\n' "$status" | sed -n 's/^ssid=//p' | head -n 1)
+                log_message "connected to $ssid"
+                dhcpcd "$INTERFACE" >/dev/null 2>&1 || true
+            fi
+            failures=0
+            was_connected=1
+            if ! ip -4 addr show dev "$INTERFACE" | grep -q ' inet '; then
+                dhcpcd "$INTERFACE" >/dev/null 2>&1 || true
+            else
+                # Ethernet is a local management link to the PC. Never use
+                # its gateway for public traffic; the board must reach the
+                # server independently through Wi-Fi.
+                ip route del default dev "$MANAGEMENT_INTERFACE" >/dev/null 2>&1 || true
+            fi
+        else
+            if [ "$was_connected" -eq 1 ]; then
+                log_message "connection lost; reconnecting"
+            fi
+            was_connected=0
+            failures=$((failures + 1))
+
+            if ! printf '%s\n' "$status" | grep -q '^wpa_state='; then
+                start_supplicant >/dev/null 2>&1 || true
+            else
+                wpa_cli -i "$INTERFACE" enable_network all >/dev/null 2>&1 || true
+                wpa_cli -i "$INTERFACE" reconnect >/dev/null 2>&1 || true
+            fi
+
+            if [ "$failures" -ge "$RESTART_AFTER" ]; then
+                log_message "association timeout; restarting supplicant"
+                start_supplicant >/dev/null 2>&1 || true
+                failures=0
+            fi
+        fi
+        sleep "$CHECK_INTERVAL"
+    done
+}
+
+monitor_running() {
+    [ -s "$MONITOR_PIDFILE" ] && kill -0 "$(cat "$MONITOR_PIDFILE")" 2>/dev/null
+}
+
+monitor_pids() {
+    ps | awk '/\/etc\/init.d\/S97zhirun-wifi monitor/ && !/awk/ {print $1}'
+}
+
+start() {
+    monitor_running && return 0
+    if [ -f "$LOGFILE" ] && [ "$(wc -c < "$LOGFILE")" -gt 131072 ]; then
+        tail -c 65536 "$LOGFILE" > "$LOGFILE.tmp" && mv "$LOGFILE.tmp" "$LOGFILE"
+    fi
+    nohup "$0" monitor >> "$LOGFILE" 2>&1 &
+    echo $! > "$MONITOR_PIDFILE"
+}
+
+stop() {
+    old_pids=$(monitor_pids)
+    [ -n "$old_pids" ] && kill $old_pids 2>/dev/null || true
+    count=0
+    while [ -n "$(monitor_pids)" ] && [ "$count" -lt 20 ]; do
+        sleep 1
+        count=$((count + 1))
+    done
+    rm -f "$MONITOR_PIDFILE"
+    stop_supplicant
+    dhcpcd -k "$INTERFACE" 2>/dev/null || true
+}
+
+status() {
+    if monitor_running; then
+        echo "Wi-Fi monitor: running (pid $(cat "$MONITOR_PIDFILE"))"
+    else
+        echo "Wi-Fi monitor: stopped"
+        return 1
+    fi
+    wpa_cli -i "$INTERFACE" status 2>/dev/null | \
+        grep -E '^(ssid|wpa_state|ip_address)=' || true
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    restart|reload) stop; start ;;
+    monitor) monitor ;;
+    status) status ;;
+    *) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac

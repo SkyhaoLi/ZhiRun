@@ -2,8 +2,8 @@
   "source": "ISRIC SoilGrids 2.0 point predictions, retrieved 2026-08-11",
   "warning": "区域先验，不替代地块土壤化验和田间持水量实测。",
   "profiles": [
-    {"name": "土默川西", "latitude": 40.75, "longitude": 111.35, "ph": 8.2, "soc_g_kg": 11.2, "nitrogen_g_kg": 1.2, "sand_pct": 41.7, "clay_pct": 20.8, "bulk_density": 1.39},
-    {"name": "土默川中", "latitude": 40.72, "longitude": 111.55, "ph": 8.4, "soc_g_kg": 8.4, "nitrogen_g_kg": 1.41, "sand_pct": 31.3, "clay_pct": 20.6, "bulk_density": 1.39},
-    {"name": "呼市东南农田", "latitude": 40.68, "longitude": 111.95, "ph": 8.4, "soc_g_kg": 7.7, "nitrogen_g_kg": 1.0, "sand_pct": 55.2, "clay_pct": 18.4, "bulk_density": 1.38}
+    {"name": "土默川西", "latitude": 40.75, "longitude": 111.35, "ph": 8.2, "soc_g_kg": 11.2, "nitrogen_g_kg": 1.2, "phosphorus_mg_kg": 18.0, "potassium_mg_kg": 145.0, "sand_pct": 41.7, "clay_pct": 20.8, "bulk_density": 1.39},
+    {"name": "土默川中", "latitude": 40.72, "longitude": 111.55, "ph": 8.4, "soc_g_kg": 8.4, "nitrogen_g_kg": 1.41, "phosphorus_mg_kg": 20.0, "potassium_mg_kg": 160.0, "sand_pct": 31.3, "clay_pct": 20.6, "bulk_density": 1.39},
+    {"name": "呼市东南农田", "latitude": 40.68, "longitude": 111.95, "ph": 8.4, "soc_g_kg": 7.7, "nitrogen_g_kg": 1.0, "phosphorus_mg_kg": 14.0, "potassium_mg_kg": 120.0, "sand_pct": 55.2, "clay_pct": 18.4, "bulk_density": 1.38}
   ]
 }

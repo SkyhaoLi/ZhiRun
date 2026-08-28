@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only Modbus RTU probe for Atlas RS485 migration diagnostics."""
+"""Read-only Modbus RTU probe for RK3506B sensor diagnostics."""
 import argparse
 import os
 import select

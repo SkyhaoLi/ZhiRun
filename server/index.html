@@ -154,49 +154,20 @@
   .seg button{flex:1;padding:11px;border-radius:9px;border:1px solid #2a3850;background:#0f1622;color:var(--muted);cursor:pointer;font-size:14px;transition:.18s}
   .seg button.on{background:linear-gradient(135deg,var(--acc2),#2c7a67);border-color:#3fa088;color:#eafff6;font-weight:600}
   .thr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  /* 模型页只有这一套布局规则，避免后续声明依赖覆盖顺序。 */
-  #p-model.panel.active{display:flex;height:100%;min-height:0}
-  #p-model .fert-board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"left right" "result result";grid-template-rows:minmax(680px,1fr) auto;gap:16px;width:100%;height:100%;min-height:0;margin:0}
-  #p-model .fert-left-column{grid-area:left}
-  #p-model .fert-right-column{grid-area:right}
-  #p-model .fert-column{display:grid;grid-template-rows:minmax(0,4fr) minmax(0,6fr);gap:16px;min-width:0;min-height:0}
-  #p-model .fert-card{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px;overflow:hidden;background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
-  #p-model .fert-card h3{font-size:20px;margin:0 0 13px}
-  #p-model .fert-card .sub{font-size:12px;margin:0 0 12px}
-  #p-model .fert-card label{font-size:14px;margin:8px 0 5px}
-  #p-model .fert-card .in{min-height:43px;padding:10px 12px;font-size:15px}
-  #p-model .fert-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
-  #p-model .fert-form .wide{grid-column:1/-1}
-  #p-model .fert-decision .fert-form{flex:1;grid-template-rows:repeat(2,minmax(0,1fr));align-items:center}
-  #p-model .fert-calibration .fert-form{flex:1;grid-template-rows:repeat(4,minmax(0,1fr));align-items:center}
-  #p-model .sensor-readings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;flex:1;min-height:0}
-  #p-model .sensor-reading{display:flex;min-height:82px;min-width:0;padding:16px 14px;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:8px;background:#0f1622}
-  #p-model .sensor-reading .sl{display:block;margin-bottom:8px;color:var(--muted);font-size:14px}
-  #p-model .sensor-reading .sensor-value{display:flex;align-items:baseline;gap:5px;min-width:0}
-  #p-model .sensor-reading .sv{display:block;overflow:hidden;color:#eafff6;font-size:29px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
-  #p-model .sensor-reading .su{flex:0 0 auto;color:var(--muted);font-size:14px}
-  #p-model .sensor-reading .sv.waiting{color:var(--dim);font-size:16px;font-weight:500;white-space:normal}
-  #p-model .fert-health .metrics{gap:8px;margin-top:0}
-  #p-model .fert-health>h3{margin-bottom:6px}
-  #p-model .fert-health .metric{padding:6px;border-radius:8px}
-  #p-model .fert-health .metric .mv{font-size:20px}
-  #p-model .fert-health .metric .ml{margin-top:2px;font-size:11px}
-  #p-model .fert-health .mstat{margin:0 0 3px;padding:4px 8px;font-size:12px}
-  #p-model .fert-health>.sub{display:none}
-  #p-model .fert-health>label{margin:3px 0 2px;font-size:11px}
-  #p-model .fert-health>.row .in{height:32px;min-height:32px;padding:5px 8px;font-size:12px}
-  #p-model .fert-health>.row .btn{height:32px;padding:4px 10px;font-size:12px}
-  #p-model .fert-health .note{margin:2px 0 0;padding:3px 7px;font-size:11px;line-height:1.2}
-  #p-model .fert-action{margin-top:auto;padding-top:2px}
-  #p-model .fert-action .btn{width:100%;margin:0;padding:7px;font-size:13px}
-  #p-model .fert-result{grid-area:result;display:none;margin:0}
-  #p-model .fert-result.has-result{display:flex}
-  #p-model .fert-result .rtop{padding:12px 14px}
-  #p-model .fert-result .rtop .cn{font-size:20px}
-  #p-model .fert-result h3{margin:14px 0 6px}
-  #p-model .fert-result .rlist .ri{padding:7px 0;font-size:13px}
-  @media(max-width:960px){#p-model .fert-board{gap:12px}#p-model .fert-column{gap:12px}#p-model .fert-card{padding:16px}#p-model .fert-health{padding:11px 16px}}
-  @media(max-width:720px){#p-model.panel.active{height:auto}#p-model .fert-board{height:auto;grid-template-columns:1fr;grid-template-areas:"left" "right" "result";grid-template-rows:auto auto auto}#p-model .fert-column{grid-template-rows:auto auto}#p-model .fert-card{overflow:visible}#p-model .fert-form{grid-template-columns:1fr;grid-template-rows:auto}#p-model .fert-form .wide{grid-column:auto}#p-model .sensor-readings{grid-template-rows:auto}}
+  #p-model.panel.active{display:block;overflow:auto}
+  #p-model .model-shell{display:grid;grid-template-columns:minmax(280px,.72fr) minmax(0,1.7fr);gap:14px;width:100%}
+  #p-model .model-service{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:#111b29}
+  #p-model .model-service h2{margin:0;font-size:19px}.model-service-copy{display:flex;align-items:center;gap:14px;min-width:0}.model-tag{padding:4px 8px;border:1px solid #35526a;border-radius:5px;color:#a9c7df;font-size:11px}
+  #p-model .model-card{min-width:0;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+  #p-model .model-card h3{margin:0 0 12px;font-size:16px}.model-card .sub{margin:-5px 0 12px;font-size:12px}
+  #p-model .concentration-list{display:grid;gap:10px}.concentration-row{display:grid;grid-template-columns:54px 1fr 42px;align-items:center;gap:8px}.concentration-row b{font-size:14px}.concentration-row .in{min-width:0}
+  #p-model .model-action{width:100%;margin-top:14px}.model-input-note{margin-top:12px;padding-top:10px;border-top:1px solid var(--line2);color:var(--muted);font-size:11px;line-height:1.55}
+  #p-model .auto-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.auto-cell{min-width:0;padding:10px;border:1px solid var(--line2);border-radius:6px;background:#0f1723}.auto-cell span{display:block;color:var(--muted);font-size:11px}.auto-cell b{display:block;margin-top:5px;overflow:hidden;color:#eef5ff;font-size:18px;text-overflow:ellipsis;white-space:nowrap}.auto-cell small{font-size:10px;color:var(--dim)}
+  #p-model .model-result{display:none;grid-column:1/-1}.model-result.has-result{display:block}.decision-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}.decision-head h3{margin:0}.decision-badge{padding:5px 9px;border-radius:5px;background:rgba(83,199,167,.12);color:var(--acc);font-size:12px}.decision-badge.blocked{background:rgba(224,90,90,.12);color:#e79aa8}
+  #p-model .decision-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.decision-metric{padding:11px;border:1px solid var(--line2);border-radius:6px;background:#101927}.decision-metric span{display:block;color:var(--muted);font-size:11px}.decision-metric b{display:block;margin-top:5px;font-size:20px;color:#fff}
+  #p-model .model-result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.result-section{min-width:0}.result-section h4{margin:0 0 7px;font-size:13px}.model-list{border-top:1px solid var(--line2)}.model-list div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12px}.model-list span{color:var(--muted)}.model-list b{text-align:right}.model-alerts{margin-top:12px;padding:10px;border-left:3px solid #d3a84d;background:rgba(211,168,77,.08);color:#e8d39e;font-size:12px;line-height:1.55}
+  @media(max-width:900px){#p-model .model-shell{grid-template-columns:1fr}.model-service,#p-model .model-result{grid-column:auto}#p-model .auto-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#p-model .model-result-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){#p-model .model-service{align-items:flex-start;flex-direction:column}#p-model .auto-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#p-model .decision-metrics,#p-model .model-result-grid{grid-template-columns:1fr 1fr}.decision-head{flex-direction:column}}
   .thr .fi label{margin-top:0}
   .thr .fi small{color:var(--dim);font-size:11px;display:block;margin-top:3px}
   .vstat{font-size:15px;padding:13px 0;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;align-items:center}
@@ -230,6 +201,8 @@
   .rules-title{display:flex;align-items:center;justify-content:space-between;margin-top:6px}.rules-title label{margin:0}.rule-summary{font-size:12px;color:var(--accdim);margin:11px 0 0;padding:10px 12px;border-radius:8px;background:rgba(83,199,167,.07);line-height:1.55}
   .range-rule{margin:15px 2px 2px;padding:0 2px}.range-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:8px}.range-track{height:9px;position:relative;border-radius:10px;background:#243043}.range-track i{position:absolute;top:0;height:100%;border-radius:10px;background:linear-gradient(90deg,#e7bc63,#53c7a7);pointer-events:none}.range-rule input[type=range]{position:absolute;left:0;top:-9px;width:100%;height:28px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;pointer-events:none}.range-rule input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:20px;height:20px;border:3px solid #eafff6;border-radius:50%;background:var(--acc);box-shadow:0 2px 7px rgba(0,0,0,.45);pointer-events:auto;cursor:grab}.range-rule input[type=range]:last-child::-webkit-slider-thumb{background:#e7bc63}.range-rule input[type=range]::-moz-range-thumb{width:15px;height:15px;border:3px solid #eafff6;border-radius:50%;background:var(--acc);box-shadow:0 2px 7px rgba(0,0,0,.45);pointer-events:auto;cursor:grab}.range-rule input[type=range]:last-child::-moz-range-thumb{background:#e7bc63}
   .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}.status-card{min-height:92px;padding:13px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(155deg,#101a27,#0e1723)}.status-card .k{display:block;color:var(--muted);font-size:12px}.status-card .v{display:block;margin-top:12px;font-size:16px;font-weight:750;color:#dbe6f5}.status-card .v.on{color:var(--acc)}.status-card .v.off{color:#e79aa8}
+  .dose-stage{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;color:var(--muted);font-size:12px}.dose-stage b{color:#e8edf5;font-size:14px}.dose-lines{border-top:1px solid var(--line)}.dose-line{padding:10px 0;border-bottom:1px solid var(--line2)}.dose-line-head,.dose-line-meta{display:flex;justify-content:space-between;gap:10px}.dose-line-head b{font-size:14px}.dose-line-head span{font-size:12px;color:#e79aa8}.dose-line-head span.on{color:var(--acc)}.dose-line-meta{margin-top:5px;color:var(--muted);font-size:11px}.dose-progress{height:6px;margin-top:7px;overflow:hidden;border-radius:4px;background:#202d3e}.dose-progress i{display:block;width:0;height:100%;background:var(--acc);transition:width .35s}.dose-stop{width:100%;margin-top:12px;padding:10px;border:1px solid rgba(224,90,90,.65);border-radius:7px;background:rgba(224,90,90,.14);color:#f0a4a4;font-weight:700;cursor:pointer}.dose-stop:hover{background:rgba(224,90,90,.22)}
+  .dose-line-meta .vbtns,.farm-dose-row .vbtns{margin-top:0}.dose-line-meta .vbtns button,.farm-dose-row .vbtns button{min-width:58px;padding:6px 10px;border-radius:6px;font-size:12px}.farm-dose-row .vbtns{margin-top:7px}
   .soil-status{padding:15px;border:1px solid #294256;border-radius:13px;background:linear-gradient(135deg,rgba(38,83,104,.16),rgba(15,25,37,.82));margin-bottom:14px}.soil-reading{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px}.soil-reading span{font-size:13px;color:#bfd0e7;font-weight:700}.soil-reading b{font-size:25px;color:#eafff6;letter-spacing:-.5px}.soil-meter{height:9px;border-radius:10px;overflow:hidden;background:#202d3e;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}.soil-meter i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#e39b65,#e7c968 45%,#53c7a7);transition:width .5s ease}.soil-message{font-size:13px;color:var(--accdim);margin-top:10px;line-height:1.45}.soil-status.no-data{border-color:#344158;background:linear-gradient(135deg,rgba(74,91,119,.15),rgba(15,25,37,.82))}.soil-status.no-data .soil-meter i{width:0!important;background:#65738a}.soil-status.no-data .soil-message{color:#aab7ca}
   .style-switch{border:1px solid #34455f;background:#172235;color:#b9c9df;border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:700}
   .farm-view{display:none;min-height:100vh;color:#17231a;background:#e8f2e7}
@@ -295,6 +268,7 @@
   .farm-bottom .farm-advice-item{border-color:rgba(65,139,75,.22);background:rgba(248,253,247,.76)}
   .farm-irrigation{padding:0}.farm-irrigation-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(90deg,rgba(7,55,18,.86),transparent)}.farm-irrigation-head h2{margin:0;font-size:16px}.farm-irrigation-settings{width:30px;height:30px;border:1px solid rgba(255,255,255,.5);border-radius:7px;background:rgba(255,255,255,.14);color:#fff;cursor:pointer}.farm-irrigation-body{padding:15px}.farm-switch-control{display:flex;align-items:center;gap:8px}.farm-switch-control span{font-size:11px;font-weight:800;color:#fff;min-width:23px}.farm-irrigation #farmValveText{font-size:12px;color:rgba(255,255,255,.72);margin-top:4px}.farm-irrigation .farm-moist b{float:right}.farm-irrigation .farm-valve-out{font-size:11px;color:rgba(255,255,255,.72);margin-top:8px}
   .farm-irrigation .farm-switch.on + *{color:#a8ef9a}
+  .farm-dose-stage{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:rgba(255,255,255,.72)}.farm-dose-stage b{color:#fff}.farm-dose-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}.farm-dose-row{padding:7px 8px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.11)}.farm-dose-row span{display:block;font-size:10px;color:rgba(255,255,255,.72)}.farm-dose-row b{display:block;margin-top:3px;font-size:12px;color:#fff}.farm-dose-row b.on{color:#9af09f}.farm-dose-stop{width:100%;margin-top:9px;padding:7px;border:1px solid rgba(255,160,160,.65);border-radius:6px;background:rgba(125,20,20,.4);color:#fff;font-weight:700;cursor:pointer}
   @media(min-width:1261px){
     .farm-left,.farm-right{display:grid;grid-template-rows:220px minmax(0,1fr)}
     .farm-left>.farm-card,.farm-right>.farm-card{min-height:0;flex:none;overflow:hidden}
@@ -353,16 +327,33 @@
   <div class="panel" id="p-valve">
     <div class="cols">
       <div class="box left">
-        <h3>🎛️ 阈值阀控制</h3>
-        <label>控制模式</label>
-        <div class="seg" id="vMode"><button data-m="manual" onclick="setMode('manual')">手动</button><button class="on" data-m="auto" onclick="setMode('auto')">自动</button></div>
-        <div class="mode-section manual" id="vManualSection"><label>水泵操作 <span id="vManHint" style="color:var(--dim);font-weight:400">（手动模式：土壤湿度不会自动关阀）</span></label><div class="vbtns"><button class="open" id="vOpen" onclick="manualValve('open')">开阀</button><button class="close" id="vClose" onclick="manualValve('close')">关阀</button></div></div>
+        <h3>🎛️ 三路肥料泵安全控制</h3>
+        <div class="seg" id="vMode" style="display:none"><button data-m="manual"></button></div>
+        <div class="mode-section manual" id="vManualSection"><label>IN1/IN2/IN3 均为高电平启动 <span id="vManHint" style="color:var(--dim);font-weight:400">（每路最长 180 秒）</span></label><div class="vbtns"><button class="open" id="vOpen" style="display:none" onclick="manualValve('open')">兼容启动 IN1</button><button class="close" id="vClose" onclick="stopFertigation()">全部停止</button></div></div>
         <div class="mode-section" id="vAutoSection"><div class="mode-tip">保存规则后，系统会根据土壤水分自动决定是否浇水。</div><label>自动模式阈值</label><div class="thr"><div class="fi"><label>开阀阈值 (%)</label><input class="in" id="vOnTh" type="number" step="1" min="0" max="100" value="30"><small>土壤水分低于此值 → 开阀</small></div><div class="fi"><label>关阀阈值 (%)</label><input class="in" id="vOffTh" type="number" step="1" min="0" max="100" value="55"><small>土壤水分高于此值 → 关阀</small></div><div class="fi"><label>最短运行 (秒)</label><input class="in" id="vMinRun" type="number" step="1" min="0" value="15"><small>开阀后至少运行此时长</small></div><div class="fi"><label>最长运行 (秒)</label><input class="in" id="vMaxRun" type="number" step="1" min="1" value="180"><small>超时强制关阀保护</small></div></div><button class="btn pri" onclick="saveTh()">保存自动规则</button></div>
         <div id="vOut"></div>
       </div>
       <div class="box">
-        <h3>📊 当前状态</h3>
-        <div class="status-grid"><div class="status-card"><span class="k">水泵状态</span><span class="v" id="vState">--</span></div><div class="status-card"><span class="k">浇水方式</span><span class="v" id="vModeTxt">--</span></div><div class="status-card"><span class="k">本次浇水</span><span class="v" id="vRun">--</span></div><div class="status-card"><span class="k">累计浇水次数</span><span class="v" id="vCount">--</span></div></div>
+        <div id="vSinglePumpStatus">
+          <h3>📊 N/P/K 三路测试</h3>
+          <div class="dose-lines">
+            <div class="dose-line"><div class="dose-line-head"><b>N 肥泵 · IN1 / GPIO4</b><span id="vTestNState">停止</span></div><div class="dose-line-meta"><span id="vTestNGpio">低电平</span><span class="vbtns"><button class="open" onclick="pumpTest('n','open')">启动</button><button class="close" onclick="pumpTest('n','close')">停止</button></span></div></div>
+            <div class="dose-line"><div class="dose-line-head"><b>P 肥泵 · IN2 / GPIO5</b><span id="vTestPState">停止</span></div><div class="dose-line-meta"><span id="vTestPGpio">低电平</span><span class="vbtns"><button class="open" onclick="pumpTest('p','open')">启动</button><button class="close" onclick="pumpTest('p','close')">停止</button></span></div></div>
+            <div class="dose-line"><div class="dose-line-head"><b>K 肥泵 · IN3 / GPIO6</b><span id="vTestKState">停止</span></div><div class="dose-line-meta"><span id="vTestKGpio">低电平</span><span class="vbtns"><button class="open" onclick="pumpTest('k','open')">启动</button><button class="close" onclick="pumpTest('k','close')">停止</button></span></div></div>
+          </div>
+        </div>
+        <div id="vFourPumpStatus" style="display:none">
+        <h3>📊 四路泵组实时状态</h3>
+        <div class="dose-stage"><span>当前阶段</span><b id="vJobStage">--</b></div>
+        <div class="dose-lines">
+          <div class="dose-line"><div class="dose-line-head"><b>N 肥泵 + 1 号流量计</b><span id="vNState">停止</span></div><div class="dose-line-meta"><span id="vNVolume">0 / 0 L</span><span id="vNFlow">0 L/min</span></div><div class="dose-progress"><i id="vNBar"></i></div></div>
+          <div class="dose-line"><div class="dose-line-head"><b>P 肥泵 + 2 号流量计</b><span id="vPState">停止</span></div><div class="dose-line-meta"><span id="vPVolume">0 / 0 L</span><span id="vPFlow">0 L/min</span></div><div class="dose-progress"><i id="vPBar"></i></div></div>
+          <div class="dose-line"><div class="dose-line-head"><b>K 肥泵 + 3 号流量计</b><span id="vKState">停止</span></div><div class="dose-line-meta"><span id="vKVolume">0 / 0 L</span><span id="vKFlow">0 L/min</span></div><div class="dose-progress"><i id="vKBar"></i></div></div>
+          <div class="dose-line"><div class="dose-line-head"><b>混合罐出口泵</b><span id="vOutletState">停止</span></div><div class="dose-line-meta"><span id="vOutletRun">0 / 0 s</span><span>三路投料完成后启动</span></div></div>
+        </div>
+        <button class="dose-stop" onclick="stopFertigation()">全部停止</button>
+        </div>
+        <span id="vState" style="display:none"></span><span id="vModeTxt" style="display:none"></span><span id="vRun" style="display:none"></span><span id="vCount" style="display:none"></span>
         <h3 style="margin-top:12px">湿度进度</h3>
         <div class="soil-status no-data" id="vSoilStatus"><div class="soil-reading"><span>💧 土壤水分状态</span><b id="vSoil">--</b></div><div class="soil-meter"><i id="vSoilBar"></i></div><div class="soil-message" id="vSoilMessage">暂未获取数据，请检查土壤传感器连接。</div></div>
         <div class="spacer"></div>
@@ -373,61 +364,41 @@
 
   <!-- 面板3: 模型 (实时数据 -> 水肥策略服务) -->
   <div class="panel" id="p-model">
-    <div class="cols fert-board">
-      <div class="fert-column fert-left-column">
-      <section class="fert-card fert-decision">
-        <h3>本次决策</h3>
-        <div class="fert-form">
-          <div><label>作物</label><select class="in" id="crop" onchange="updateStages()"><option selected>玉米</option><option>马铃薯</option><option>甜菜</option><option>向日葵</option></select></div>
-          <div><label>生育期</label><select class="in" id="stage"></select></div>
-          <div><label>种植面积（亩）</label><input class="in" id="areaMu" type="number" min="0.1" step="0.1" value="1"></div>
-          <div><label>距上次水肥（天）</label><input class="in" id="daysSince" type="number" min="0" max="365" value="8"></div>
+    <div class="model-shell">
+      <section class="model-service">
+        <div class="model-service-copy"><div><h2>呼和浩特水肥一体化 V2</h2><div class="sub">ExtraTrees 多输出策略 · 自动环境输入 · 玉米 1 亩</div></div><span class="model-tag">39,600 条策略样本</span></div>
+        <div id="mHealth" class="mstat">检测服务器模型中…</div>
+      </section>
+      <section class="model-card">
+        <h3>三种母液浓度</h3>
+        <div class="sub">人工输入仅用于把养分目标换算为三路母液体积</div>
+        <div class="concentration-list">
+          <label class="concentration-row"><b>N</b><input class="in" id="nConcentration" type="number" min="0.1" max="10000" step="0.1" value="100"><span>g/L</span></label>
+          <label class="concentration-row"><b>P₂O₅</b><input class="in" id="pConcentration" type="number" min="0.1" max="10000" step="0.1" value="80"><span>g/L</span></label>
+          <label class="concentration-row"><b>K₂O</b><input class="in" id="kConcentration" type="number" min="0.1" max="10000" step="0.1" value="120"><span>g/L</span></label>
+        </div>
+        <button class="btn pri model-action" id="predictBtn" onclick="predict()">生成 V2 水肥工作单</button>
+        <div id="mOut"></div>
+        <div class="model-input-note">模型运行在服务器。设备实时环境、定位和天气自动进入模型；缺失字段使用呼和浩特区域先验安全降级。</div>
+      </section>
+      <section class="model-card">
+        <h3>自动环境输入</h3>
+        <div class="auto-grid">
+          <div class="auto-cell"><span>土壤水分</span><b id="modelSoilMoist">--</b><small>%</small></div>
+          <div class="auto-cell"><span>土壤温度</span><b id="modelSoilTemp">--</b><small>°C</small></div>
+          <div class="auto-cell"><span>土壤 EC</span><b id="modelSoilEc">--</b><small>dS/m</small></div>
+          <div class="auto-cell"><span>土壤 pH</span><b id="modelSoilPh">--</b></div>
+          <div class="auto-cell"><span>有效氮 N</span><b id="modelN">--</b><small>mg/kg</small></div>
+          <div class="auto-cell"><span>有效磷 P</span><b id="modelP">--</b><small>mg/kg</small></div>
+          <div class="auto-cell"><span>有效钾 K</span><b id="modelK">--</b><small>mg/kg</small></div>
+          <div class="auto-cell"><span>24 h 雨量</span><b id="modelRain">--</b><small>mm</small></div>
+          <div class="auto-cell"><span>空气温度</span><b id="modelAirTemp">--</b><small>°C</small></div>
+          <div class="auto-cell"><span>空气湿度</span><b id="modelAirHum">--</b><small>%RH</small></div>
+          <div class="auto-cell"><span>风速</span><b id="modelWind">--</b><small>m/s</small></div>
+          <div class="auto-cell"><span>光照</span><b id="modelLux">--</b><small>lux</small></div>
         </div>
       </section>
-      <section class="fert-card fert-calibration">
-        <h3>设备标定与母液参数</h3>
-        <div class="fert-form">
-          <div class="wide"><label>主水流量（L/min）</label><input class="in" id="mainFlow" type="number" min="0.01" step="0.1" value="60"></div>
-          <div><label>A 阀流量（L/min）</label><input class="in" id="aFlow" type="number" min="0" step="0.01" value="1.00"></div>
-          <div><label>A 母液浓度：N（g/L）</label><input class="in" id="aConcentration" type="number" min="0" step="0.1" value="100"></div>
-          <div><label>B 阀流量（L/min）</label><input class="in" id="bFlow" type="number" min="0" step="0.01" value="1.00"></div>
-          <div><label>B 母液浓度：P₂O₅（g/L）</label><input class="in" id="bConcentration" type="number" min="0" step="0.1" value="80"></div>
-          <div><label>C 阀流量（L/min）</label><input class="in" id="cFlow" type="number" min="0" step="0.01" value="1.00"></div>
-          <div><label>C 母液浓度：K₂O（g/L）</label><input class="in" id="cConcentration" type="number" min="0" step="0.1" value="120"></div>
-        </div>
-      </section>
-      </div>
-      <div class="fert-column fert-right-column">
-      <section class="fert-card fert-moisture">
-        <h3>土壤传感器数据</h3>
-        <div class="sensor-readings">
-          <div class="sensor-reading"><span class="sl">土壤墒情</span><div class="sensor-value"><strong class="sv waiting" id="sensorMoisture">--</strong><span class="su">%</span></div></div>
-          <div class="sensor-reading"><span class="sl">土壤 EC</span><div class="sensor-value"><strong class="sv waiting" id="sensorEc">--</strong><span class="su">dS/m</span></div></div>
-          <div class="sensor-reading"><span class="sl">田间持水量</span><div class="sensor-value"><strong class="sv waiting" id="sensorFieldCapacity">--</strong><span class="su">%</span></div></div>
-          <div class="sensor-reading"><span class="sl">已施 N</span><div class="sensor-value"><strong class="sv" id="sensorAppliedN">0.00</strong><span class="su">kg/亩</span></div></div>
-          <div class="sensor-reading"><span class="sl">已施 P₂O₅</span><div class="sensor-value"><strong class="sv" id="sensorAppliedP">0.00</strong><span class="su">kg/亩</span></div></div>
-          <div class="sensor-reading"><span class="sl">已施 K₂O</span><div class="sensor-value"><strong class="sv" id="sensorAppliedK">0.00</strong><span class="su">kg/亩</span></div></div>
-        </div>
-        <input id="moisture20" type="hidden">
-      </section>
-      <section class="fert-card fert-health">
-        <h3>策略服务</h3>
-        <div id="mHealth" class="mstat">检测推理服务中…</div>
-        <div class="metrics">
-          <div class="metric"><div class="mv">4</div><div class="ml">适用作物</div></div>
-          <div class="metric"><div class="mv">实时</div><div class="ml">策略计算</div></div>
-          <div class="metric"><div class="mv">4</div><div class="ml">阀门工作单</div></div>
-        </div>
-        <div class="sub">区域水肥策略模型，不是产量预测模型。</div>
-        <input id="fieldCapacity" type="hidden"><input id="soilEc" type="hidden">
-        <input id="appliedN" type="hidden" value="0"><input id="appliedP" type="hidden" value="0"><input id="appliedK" type="hidden" value="0">
-        <label>服务地址</label>
-        <div class="row"><input class="in" id="inferUrl" value="服务器 80 端口（统一入口）" readonly><button class="btn sm" onclick="checkInfer()">测试</button></div>
-        <div class="note">首次使用请按田间实测与化验校准。</div>
-        <div class="fert-action"><button class="btn pri" id="predictBtn" onclick="predict()">生成水肥建议</button><div id="mOut"></div></div>
-      </section>
-      </div>
-      <section class="fert-card fert-result"><div class="result" id="result"></div></section>
+      <section class="model-card model-result" id="modelResult"><div id="result"></div></section>
     </div>
   </div>
 
@@ -435,15 +406,15 @@
   <div class="panel" id="p-net">
     <div class="cols">
       <div class="box left">
-        <h3 style="justify-content:space-between">📶 H3C 上联 Wi-Fi <button class="btn sm" onclick="scan()">↻ 扫描</button></h3>
-        <div class="wifi-section"><div class="wifi-section-title">H3C 当前上联</div><div id="wifiCurrent" class="wifi-list"><div class="sub" style="padding:15px">正在读取中继状态…</div></div></div>
-        <div class="wifi-section"><div class="wifi-section-title">H3C 扫描到的网络</div><div id="wifiList" class="wifi-list"><div class="sub" style="padding:15px">点击“扫描”开始查找网络。</div></div></div>
+        <h3 style="justify-content:space-between">📶 RK3506B 板载 Wi-Fi <button class="btn sm" onclick="scan()">↻ 扫描</button></h3>
+        <div class="wifi-section"><div class="wifi-section-title">RK3506B 当前连接</div><div id="wifiCurrent" class="wifi-list"><div class="sub" style="padding:15px">正在读取板载 Wi-Fi 状态…</div></div></div>
+        <div class="wifi-section"><div class="wifi-section-title">RK3506B 扫描到的网络</div><div id="wifiList" class="wifi-list"><div class="sub" style="padding:15px">点击“扫描”开始查找网络。</div></div></div>
         <div class="wifi-section"><div class="wifi-section-title">其他网络</div><div class="other-wifi"><input class="in" id="ssidManual" placeholder="Wi-Fi 名称"><input class="in" id="manualPass" type="password" placeholder="Wi-Fi 密码"><button class="btn pri" onclick="connectNetwork($('ssidManual').value.trim(),$('manualPass').value,this)">连接</button></div></div>
         <div id="out"></div>
       </div>
       <div class="box net-right">
         <section class="net-section">
-        <h3>📶 Atlas 设备网络</h3>
+        <h3>📶 RK3506B 设备网络</h3>
         <div class="sub">断网/停电时，设备自动开热点就地采集。手机连上设备热点后，浏览器打开下面任一地址即可看数据：</div>
         <div class="kv"><span class="k">设备热点</span><span id="apName">ZhiRun-XXXX</span></div>
         <div class="kv"><span class="k">热点状态</span><span id="apState">正在读取…</span></div>
@@ -464,35 +435,59 @@
 </div>
 
 <div class="farm-view" id="farmView"><main class="farm-app"><div class="farm-shell">
-  <header class="farm-top"><div class="farm-brand"><span class="farm-mark">🌿</span><span class="farm-title">智慧农业平台<small id="farmSubTitle">农田综合驾驶舱</small></span></div><div class="farm-tools" id="farmHeaderActions"><button class="farm-icon-button" title="刷新全部数据" onclick="farmRefresh()">↻</button><div class="farm-wifi-wrap"><button class="farm-icon-button" title="H3C 上联设置" aria-label="H3C 上联设置" onclick="toggleFarmWifi(event)">📶</button><div class="farm-wifi-pop" id="farmWifiPanel" onclick="event.stopPropagation()"><h4>H3C 上联 Wi-Fi</h4><div class="farm-wifi-current" id="farmWifiCurrent">正在读取中继状态…</div><div class="farm-wifi-list" id="farmWifiList"><div style="padding:12px;color:#718076;font-size:12px">点击扫描查找附近网络</div></div><div class="farm-wifi-actions"><button class="btn sm" onclick="scanFarmWifi()">↻ 扫描网络</button></div><div class="farm-hotspot-row"><span>设备热点</span><button class="farm-hotspot-toggle" id="farmHotspotToggle" onclick="toggleFarmHotspot()">开启热点</button></div><div class="farm-wifi-status" id="farmWifiStatus"></div></div></div><button class="farm-back" onclick="setViewMode('classic')">经典模式</button><div class="farm-online" id="farmConnection"><i class="farm-dot"></i><span id="farmConnectionText">连接中</span></div></div></header>
+  <header class="farm-top"><div class="farm-brand"><span class="farm-mark">🌿</span><span class="farm-title">智慧农业平台<small id="farmSubTitle">农田综合驾驶舱</small></span></div><div class="farm-tools" id="farmHeaderActions"><button class="farm-icon-button" title="刷新全部数据" onclick="farmRefresh()">↻</button><div class="farm-wifi-wrap"><button class="farm-icon-button" title="RK3506B Wi-Fi 设置" aria-label="RK3506B Wi-Fi 设置" onclick="toggleFarmWifi(event)">📶</button><div class="farm-wifi-pop" id="farmWifiPanel" onclick="event.stopPropagation()"><h4>RK3506B 板载 Wi-Fi</h4><div class="farm-wifi-current" id="farmWifiCurrent">正在读取板载 Wi-Fi 状态…</div><div class="farm-wifi-list" id="farmWifiList"><div style="padding:12px;color:#718076;font-size:12px">点击扫描查找附近网络</div></div><div class="farm-wifi-actions"><button class="btn sm" onclick="scanFarmWifi()">↻ 扫描网络</button></div><div class="farm-hotspot-row"><span>设备热点</span><button class="farm-hotspot-toggle" id="farmHotspotToggle" onclick="toggleFarmHotspot()">开启热点</button></div><div class="farm-wifi-status" id="farmWifiStatus"></div></div></div><button class="farm-back" onclick="setViewMode('classic')">经典模式</button><div class="farm-online" id="farmConnection"><i class="farm-dot"></i><span id="farmConnectionText">连接中</span></div></div></header>
   <div class="farm-alerts" id="farmAlerts"><div class="farm-alert">正在检查农田状态…</div></div>
   <section class="farm-layout">
     <aside class="farm-col farm-left"><section class="farm-card farm-field"><h3>◉ 农田定位</h3><div class="farm-pin"><b>⌖</b><span id="farmLocation">等待北斗有效定位</span></div></section><section class="farm-card farm-device"><h3>设备状态</h3><div class="farm-row"><span>连接状态</span><b id="farmOnline">--</b></div><div class="farm-row"><span>北斗卫星</span><b id="farmSats">--</b></div><div class="farm-row"><span>设备编号</span><b id="farmDevice">--</b></div><div class="farm-row"><span>设备 IP</span><b id="farmIp">--</b></div><div class="farm-row"><span>Wi-Fi</span><b id="farmWifi">--</b></div></section></aside>
     <section class="farm-center"><section class="farm-card farm-panel"><div class="farm-head"><h2>实时传感器</h2></div><div class="farm-sensors" id="farmSensors"></div></section></section>
     <aside class="farm-col farm-right"><section class="farm-card farm-weather"><div class="farm-weather-main"><div class="farm-weather-icon" id="farmWeatherIcon">☀️</div><div><h2 id="farmWeatherTitle">现场环境</h2><p id="farmWeatherDesc">正在获取天气预报</p></div></div><div class="farm-weather-row"><span>空气温度</span><b id="farmTemp">--</b></div><div class="farm-weather-row"><span>瞬时风速</span><b id="farmWind">--</b></div><div class="farm-weather-row"><span>当日雨量</span><b id="farmRain">--</b></div><div class="farm-weather-extra"><div class="farm-weather-stat"><span>体感温度</span><b id="farmFeel">--</b></div><div class="farm-weather-stat"><span>相对湿度</span><b id="farmWeatherHum">--</b></div><div class="farm-weather-stat"><span>12 小时降雨概率</span><b id="farmRainProb">--</b></div><div class="farm-weather-stat"><span>预报位置</span><b id="farmWeatherSource">--</b></div></div><div class="farm-rain-alert" id="farmRainAlert">正在分析近期降雨…</div><div class="farm-forecast" id="farmForecast"></div></section>
-      <section class="farm-card farm-irrigation"><div class="farm-irrigation-head"><h2>灌溉控制</h2><button class="farm-irrigation-settings" title="灌溉设置" aria-label="灌溉设置" onclick="openFarmSettings('irrigation')">⚙</button></div><div class="farm-irrigation-body"><div class="farm-mode-buttons"><button id="farmManual" onclick="farmSetMode('manual')">手动</button><button id="farmAuto" onclick="farmSetMode('auto')">自动</button></div><div class="farm-valve"><div><b>阀门</b><div id="farmValveText">读取中…</div></div><div class="farm-switch-control"><span id="farmSwitchLabel">OFF</span><button class="farm-switch" id="farmSwitch" onclick="farmToggleValve()" aria-label="切换阀门"></button></div></div><div class="farm-moist">土壤水分 <b id="farmSoil">--</b><div class="farm-bar"><span id="farmSoilBar"></span></div></div><div class="farm-valve-stats"><div class="farm-stat"><span>本次运行</span><b id="farmRun">--</b></div><div class="farm-stat"><span>累计次数</span><b id="farmCount">--</b></div></div><div id="farmValveOut" class="farm-valve-out"></div></div></section></aside>
+      <section class="farm-card farm-irrigation">
+        <div class="farm-irrigation-head"><h2 id="farmPumpTitle">N/P/K 三路测试泵</h2><button class="farm-irrigation-settings" title="流量标定" aria-label="流量标定" onclick="openFarmSettings('irrigation')">⚙</button></div>
+        <div class="farm-irrigation-body">
+          <div id="farmSinglePumpStatus">
+            <div class="farm-dose-grid">
+              <div class="farm-dose-row"><span>N 泵 · IN1</span><b id="farmTestNState">停止</b><span id="farmTestNGpio">GPIO4 低电平</span><div class="vbtns"><button class="open" onclick="pumpTest('n','open')">启动</button><button class="close" onclick="pumpTest('n','close')">停止</button></div></div>
+              <div class="farm-dose-row"><span>P 泵 · IN2</span><b id="farmTestPState">停止</b><span id="farmTestPGpio">GPIO5 低电平</span><div class="vbtns"><button class="open" onclick="pumpTest('p','open')">启动</button><button class="close" onclick="pumpTest('p','close')">停止</button></div></div>
+              <div class="farm-dose-row"><span>K 泵 · IN3</span><b id="farmTestKState">停止</b><span id="farmTestKGpio">GPIO6 低电平</span><div class="vbtns"><button class="open" onclick="pumpTest('k','open')">启动</button><button class="close" onclick="pumpTest('k','close')">停止</button></div></div>
+            </div>
+            <button class="farm-dose-stop" onclick="stopFertigation()">全部停止</button>
+          </div>
+          <div id="farmFourPumpStatus" style="display:none">
+          <div class="farm-dose-stage"><span>作业阶段</span><b id="farmJobStage">--</b></div>
+          <div class="farm-dose-grid">
+            <div class="farm-dose-row"><span>N 泵 / 1 号表</span><b id="farmNState">停止</b><span id="farmNVolume">0 / 0 L</span></div>
+            <div class="farm-dose-row"><span>P 泵 / 2 号表</span><b id="farmPState">停止</b><span id="farmPVolume">0 / 0 L</span></div>
+            <div class="farm-dose-row"><span>K 泵 / 3 号表</span><b id="farmKState">停止</b><span id="farmKVolume">0 / 0 L</span></div>
+            <div class="farm-dose-row"><span>混合罐出口泵</span><b id="farmOutletState">停止</b><span id="farmOutletRun">0 / 0 s</span></div>
+          </div>
+          <button class="farm-dose-stop" onclick="stopFertigation()">全部停止</button>
+          </div>
+          <div id="farmValveOut" class="farm-valve-out"></div>
+          <span id="farmSwitchLabel" style="display:none"></span><span id="farmRun" style="display:none"></span><span id="farmCount" style="display:none"></span>
+        </div>
+      </section></aside>
   </section>
-  <section class="farm-bottom"><section class="farm-card farm-health"><div class="farm-health-grid"><div><h2>农情概览</h2><p id="farmSummary">正在汇总实时环境数据…</p></div><div class="farm-score"><b id="farmScore">--</b><span>综合状态</span></div></div></section><section class="farm-card farm-advice"><div class="farm-advice-head"><div><h2>水肥建议</h2><div style="margin-top:4px;color:#718076;font-size:12px">基于当前土壤墒情生成本次作业建议</div></div><div class="farm-advice-controls"><select class="farm-select" id="farmCrop" onchange="farmUpdateStages()"><option>玉米</option><option>马铃薯</option><option>甜菜</option><option>向日葵</option></select><select class="farm-select" id="farmStage"></select><button class="farm-primary" id="farmPredictBtn" onclick="farmPredict()">生成建议</button></div></div><div class="farm-advice-result" id="farmAdviceResult"><div class="farm-advice-note">选择作物和生育期后生成建议；流量、面积和母液参数可在右上角设置中校准。</div></div></section></section>
+  <section class="farm-bottom"><section class="farm-card farm-health"><div class="farm-health-grid"><div><h2>农情概览</h2><p id="farmSummary">正在汇总实时环境数据…</p></div><div class="farm-score"><b id="farmScore">--</b><span>综合状态</span></div></div></section><section class="farm-card farm-advice"><div class="farm-advice-head"><div><h2>V2 水肥工作单</h2><div style="margin-top:4px;color:#718076;font-size:12px">玉米 1 亩 · 实时环境自动输入 · 服务器模型</div></div><div class="farm-advice-controls"><button class="farm-primary" id="farmPredictBtn" onclick="farmPredict()">生成工作单</button></div></div><div class="farm-advice-result" id="farmAdviceResult"><div class="farm-advice-note">三种母液浓度可在泵组右上角设置；模型不会直接启动当前测试泵。</div></div></section></section>
   <footer class="farm-foot"><span id="farmUpdated">等待实时数据</span><span>智润设备实时监控</span></footer>
 </div></main>
-<div class="farm-modal" id="farmSettings" onclick="farmModalBackdrop(event)"><div class="farm-dialog" role="dialog" aria-modal="true" aria-labelledby="farmSettingsTitle"><div class="farm-dialog-head"><h2 id="farmSettingsTitle">农场参数设置</h2><button class="farm-dialog-close" title="关闭" onclick="closeFarmSettings()">×</button></div><section class="farm-setting-group"><h3>基本信息</h3><div class="farm-settings-grid"><div class="farm-setting"><label>种植面积 (亩)</label><input id="farmArea" type="number" min="0.1" step="0.1" value="1"></div><div class="farm-setting"><label>距上次水肥 (天)</label><input id="farmDays" type="number" min="0" value="8"></div></div></section><section class="farm-setting-group"><h3>灌溉参数</h3><div class="farm-settings-grid"><div class="farm-setting"><label>开阀阈值 (%)</label><input id="farmOnTh" type="number" min="0" max="100"></div><div class="farm-setting"><label>关阀阈值 (%)</label><input id="farmOffTh" type="number" min="0" max="100"></div><div class="farm-setting"><label>最短运行 (秒)</label><input id="farmMinRun" type="number" min="0"></div><div class="farm-setting"><label>最长运行 (秒)</label><input id="farmMaxRun" type="number" min="1"></div><div class="farm-setting farm-setting-wide"><label>主水流量 (L/min)</label><input id="farmMainFlow" type="number" min="0.01" step="0.1"></div><div class="farm-setting"><label>A 阀流量 (L/min)</label><input id="farmAFlow" type="number" min="0" step="0.01"></div><div class="farm-setting"><label>A 母液浓度 N (g/L)</label><input id="farmAConcentration" type="number" min="0" step="0.1"></div><div class="farm-setting"><label>B 阀流量 (L/min)</label><input id="farmBFlow" type="number" min="0" step="0.01"></div><div class="farm-setting"><label>B 母液浓度 P₂O₅ (g/L)</label><input id="farmBConcentration" type="number" min="0" step="0.1"></div><div class="farm-setting"><label>C 阀流量 (L/min)</label><input id="farmCFlow" type="number" min="0" step="0.01"></div><div class="farm-setting"><label>C 母液浓度 K₂O (g/L)</label><input id="farmCConcentration" type="number" min="0" step="0.1"></div></div></section><div class="farm-settings-status" id="farmSettingsOut"></div><div class="farm-dialog-actions"><button class="farm-secondary" onclick="closeFarmSettings()">取消</button><button class="farm-primary" onclick="saveFarmSettings()">保存参数</button></div></div></div>
+<div class="farm-modal" id="farmSettings" onclick="farmModalBackdrop(event)"><div class="farm-dialog" role="dialog" aria-modal="true" aria-labelledby="farmSettingsTitle"><div class="farm-dialog-head"><h2 id="farmSettingsTitle">V2 母液浓度</h2><button class="farm-dialog-close" title="关闭" onclick="closeFarmSettings()">×</button></div><section class="farm-setting-group"><h3>目标养分浓度</h3><div class="farm-settings-grid"><div class="farm-setting"><label>N (g/L)</label><input id="farmNConcentration" type="number" min="0.1" max="10000" step="0.1"></div><div class="farm-setting"><label>P₂O₅ (g/L)</label><input id="farmPConcentration" type="number" min="0.1" max="10000" step="0.1"></div><div class="farm-setting"><label>K₂O (g/L)</label><input id="farmKConcentration" type="number" min="0.1" max="10000" step="0.1"></div></div></section><div class="farm-settings-status" id="farmSettingsOut"></div><div class="farm-dialog-actions"><button class="farm-secondary" onclick="closeFarmSettings()">取消</button><button class="farm-primary" onclick="saveFarmSettings()">保存浓度</button></div></div></div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
 let schema=[], cfg={};
 function fmt(v,d){return (v===null||v===undefined)?'--':(typeof v==='number'?v.toFixed(d):v);}
- const FARM_FIELDS=[['🌡','空气温度','airTemp','°C',1],['◉','空气湿度','airHum','%RH',1],['☁','CO₂ 浓度','co2','ppm',0],['☀','光照强度','lux','lux',0],['💧','土壤水分','soilMoist','%',1],['🌱','土壤温度','soilTemp','°C',1],['⚗','土壤 PH','soilPH','',2],['≋','瞬时风速','windSpeed','m/s',1],['◆','土壤氮 (N)','n','mg/kg',0],['◆','土壤磷 (P)','p','mg/kg',0],['◆','土壤钾 (K)','k','mg/kg',0],['☂','雨量','rainMm','mm/24h',1]];
+ const FARM_FIELDS=[['🌡','空气温度','airTemp','°C',1],['◉','空气湿度','airHum','%RH',1],['☁','CO₂ 浓度','co2','ppm',0],['☀','光照强度','lux','lux',0],['💧','土壤水分','soilMoist','%',1],['🌱','土壤温度','soilTemp','°C',1],['⚗','土壤 PH','soilPH','',2],['⌁','土壤 EC','soilEc','dS/m',2],['≋','瞬时风速','windSpeed','m/s',1],['◆','土壤氮 (N)','n','mg/kg',0],['◆','土壤磷 (P)','p','mg/kg',0],['◆','土壤钾 (K)','k','mg/kg',0],['☂','雨量','rainMm','mm/24h',1]];
 let farmWeatherData=null;
  function arrangeFarmPanels(){const left=document.querySelector('.farm-left'),right=document.querySelector('.farm-right'),weather=document.querySelector('.farm-weather'),device=document.querySelector('.farm-device');if(left&&right&&weather&&weather.parentElement!==left)left.appendChild(weather);if(left&&right&&device&&device.parentElement!==right)right.insertBefore(device,right.firstElementChild);}
  function setViewMode(mode){const farm=mode==='farm',recordButton=$('recordBtn'),recordTarget=$(farm?'farmHeaderActions':'classicHeaderActions');document.body.classList.toggle('farm-mode',farm);if(recordButton&&recordTarget)recordTarget.prepend(recordButton);localStorage.setItem('zhirun-view',mode);if(farm){arrangeFarmPanels();renderFarm(lastData);loadValve();loadWeather();}}
  function openFarmNetwork(){toggleFarmWifi();}
  function toggleFarmWifi(event){if(event)event.stopPropagation();const panel=$('farmWifiPanel');if(!panel)return;const open=panel.classList.toggle('open');if(open){renderFarmWifiCurrent();renderFarmWifiNetworks(valveCfg.wifiNetworks||[]);scanFarmWifi(true);const hotspot=$('farmHotspotToggle');if(hotspot&&!hotspot.classList.contains('on'))hotspot.textContent='OFF';}}
  document.addEventListener('click',event=>{const panel=$('farmWifiPanel');if(panel&&panel.classList.contains('open')&&!event.target.closest('.farm-wifi-wrap'))panel.classList.remove('open');});
- function renderFarmWifiCurrent(){const el=$('farmWifiCurrent');if(!el)return;const ssid=valveCfg.wifiSsid||cfg.ssid;if(valveCfg.wifiConnected&&ssid)el.innerHTML='📶 <b>'+String(ssid).replace(/</g,'&lt;')+'</b><small>H3C 中继已连接</small>';else el.innerHTML='📴 <b>'+(ssid?String(ssid).replace(/</g,'&lt;'):'未连接网络')+'</b><small>H3C 中继未连接</small>';}
+ function renderFarmWifiCurrent(){const el=$('farmWifiCurrent');if(!el)return;const ssid=valveCfg.wifiSsid||cfg.ssid,connected=!!valveCfg.wifiConnected||cfg.network_type==='wifi';if(connected&&ssid)el.innerHTML='📶 <b>'+String(ssid).replace(/</g,'&lt;')+'</b><small>RK3506B 板载 Wi-Fi 已连接</small>';else el.innerHTML='📴 <b>'+(ssid?String(ssid).replace(/</g,'&lt;'):'未连接网络')+'</b><small>RK3506B 板载 Wi-Fi 未连接</small>';}
  function renderFarmWifiNetworks(networks){const box=$('farmWifiList');if(!box)return;box.innerHTML=networks.length?networks.map(w=>{const ssid=String(w.ssid).replace(/"/g,'&quot;'),label=String(w.ssid).replace(/</g,'&lt;'),radio=String(w.radio||'').replace(/"/g,'&quot;'),auth=String(w.auth||'').replace(/"/g,'&quot;'),bssid=String(w.bssid||'').replace(/"/g,'&quot;');return '<button class="wifi-item" style="width:100%;display:flex;align-items:center;gap:8px;border:0;border-bottom:1px solid #e5ece5;background:#fff;text-align:left;cursor:pointer" data-ssid="'+ssid+'" data-radio="'+radio+'" data-auth="'+auth+'" data-bssid="'+bssid+'" data-lock="'+(w.lock?'1':'0')+'" onclick="farmWifiConnect(this)"><span>'+ (w.lock?'🔒':'📶') +'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+label+'</span><small style="color:#718076">'+radio+' · '+w.rssi+' dBm</small></button>';}).join(''):'<div style="padding:12px;color:#718076;font-size:12px">正在扫描附近网络…</div>';}
  let farmWifiScanning=false;
- async function scanFarmWifi(auto=false){if(farmWifiScanning)return;farmWifiScanning=true;const box=$('farmWifiList'),status=$('farmWifiStatus'),before=Number(valveCfg.wifiScannedAt||0);if(!auto||!(valveCfg.wifiNetworks||[]).length)box.innerHTML='<div style="padding:12px;color:#718076;font-size:12px">H3C 正在扫描附近网络…</div>';status.textContent=auto?'正在自动刷新网络列表…':'';try{const q=await fetchTO('/network/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),queued=await q.json();if(!queued.ok)throw new Error('offline');let data={networks:[]};for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,1200));data=await (await fetchTO('/network/scan')).json();if(Number(data.scanned_at||0)>before)break;}const networks=data.networks||[];if(networks.length){valveCfg.wifiNetworks=networks;valveCfg.wifiScannedAt=data.scanned_at;renderFarmWifiNetworks(networks);status.textContent='H3C 网络列表已更新';}else{renderFarmWifiNetworks([]);status.textContent='未扫描到网络';}}catch(e){if(!(valveCfg.wifiNetworks||[]).length)box.innerHTML='<div style="padding:12px;color:#718076;font-size:12px">暂时无法扫描</div>';status.textContent='请确认设备在线后重试';}finally{farmWifiScanning=false;}}
- async function farmWifiConnect(button){const ssid=button.dataset.ssid;if(!ssid)return;const password=button.dataset.lock==='1'?prompt('请输入 '+ssid+' 的 Wi-Fi 密码')||'':'';if(button.dataset.lock==='1'&&!password)return;const status=$('farmWifiStatus');status.textContent='正在下发 H3C 中继配置…';button.disabled=true;try{const body={ssid,password,radio:button.dataset.radio||'',auth:button.dataset.auth||'',bssid:button.dataset.bssid||''},r=await fetchTO('/network/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},8000),d=await r.json();status.textContent=d.ok?'H3C 正在切换到 '+ssid+'，约需 30–90 秒':'连接失败，请检查密码后重试';if(d.ok){valveCfg.wifiSsid=ssid;valveCfg.wifiConnected=false;renderFarmWifiCurrent();}}catch(e){status.textContent='连接失败，请稍后重试';}button.disabled=false;}
+ async function scanFarmWifi(auto=false){if(farmWifiScanning)return;farmWifiScanning=true;const box=$('farmWifiList'),status=$('farmWifiStatus'),before=Number(valveCfg.wifiScannedAt||0);if(!auto||!(valveCfg.wifiNetworks||[]).length)box.innerHTML='<div style="padding:12px;color:#718076;font-size:12px">RK3506B 正在扫描附近网络…</div>';status.textContent=auto?'正在自动刷新网络列表…':'';try{const q=await fetchTO('/network/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),queued=await q.json();if(!queued.ok)throw new Error('offline');let data={networks:[]};for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,1200));data=await (await fetchTO('/network/scan')).json();if(Number(data.scanned_at||0)>before)break;}const networks=data.networks||[];if(networks.length){valveCfg.wifiNetworks=networks;valveCfg.wifiScannedAt=data.scanned_at;renderFarmWifiNetworks(networks);status.textContent='RK3506B 网络列表已更新';}else{renderFarmWifiNetworks([]);status.textContent='未扫描到网络';}}catch(e){if(!(valveCfg.wifiNetworks||[]).length)box.innerHTML='<div style="padding:12px;color:#718076;font-size:12px">暂时无法扫描</div>';status.textContent='请确认设备在线后重试';}finally{farmWifiScanning=false;}}
+ async function farmWifiConnect(button){const ssid=button.dataset.ssid;if(!ssid)return;const password=button.dataset.lock==='1'?prompt('请输入 '+ssid+' 的 Wi-Fi 密码')||'':'';if(button.dataset.lock==='1'&&!password)return;const status=$('farmWifiStatus');status.textContent='正在向 RK3506B 下发 Wi-Fi 配置…';button.disabled=true;try{const body={ssid,password,radio:button.dataset.radio||'',auth:button.dataset.auth||'',bssid:button.dataset.bssid||''},r=await fetchTO('/network/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},8000),d=await r.json();status.textContent=d.ok?'RK3506B 正在切换到 '+ssid+'，约需 30–90 秒':'连接失败，请检查密码后重试';if(d.ok){valveCfg.wifiSsid=ssid;valveCfg.wifiConnected=false;renderFarmWifiCurrent();}}catch(e){status.textContent='连接失败，请稍后重试';}button.disabled=false;}
   async function toggleFarmHotspot(){const button=$('farmHotspotToggle'),enabled=!button.classList.contains('on'),status=$('farmWifiStatus');button.disabled=true;status.textContent=enabled?'正在开启设备热点…':'正在关闭设备热点…';try{const r=await fetchTO('/valve/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:enabled?'local_on':'local_off'})},8000),d=await r.json();if(d.ok){button.classList.toggle('on',enabled);button.textContent=enabled?'ON':'OFF';status.textContent=enabled?'热点已开启，可连接设备热点':'热点已关闭';}else status.textContent='操作失败，请稍后重试';}catch(e){status.textContent='操作失败，请确认设备在线';}button.disabled=false;}
 function farmFieldState(key,value){
   if(value==null||!Number.isFinite(Number(value)))return['','等待数据'];
@@ -503,18 +498,23 @@ function renderFarm(d={}){
   if(!$('farmSensors'))return;
   $('farmSensors').innerHTML=FARM_FIELDS.map(f=>{const state=farmFieldState(f[2],d[f[2]]);return '<article class="farm-sensor '+state[0]+'"><div class="farm-name">'+f[0]+' '+f[1]+'</div><div class="farm-metric">'+fmt(d[f[2]],f[4])+' <small>'+f[3]+'</small></div><div class="farm-sensor-state">'+state[1]+'</div></article>';}).join('');
   $('farmTemp').textContent=fmt(d.airTemp,1)+' °C';$('farmWind').textContent=fmt(d.windSpeed,1)+' m/s';$('farmRain').textContent=fmt(d.rainMm,1)+' mm';$('farmSats').textContent=d.gpsSatellites==null?'未定位':d.gpsSatellites+' 颗';$('farmLocation').innerHTML=(d.latitude!=null&&d.longitude!=null)?('北纬 '+Number(d.latitude).toFixed(5)+'°<br>东经 '+Number(d.longitude).toFixed(5)+'°'):'等待北斗有效定位';
-  const sm=d.soilMoist,abnormal=FARM_FIELDS.map(f=>[f[1],farmFieldState(f[2],d[f[2]])[1]]).filter(x=>x[1]==='偏低'||x[1]==='偏高');$('farmSoil').textContent=sm==null?'--':Number(sm).toFixed(1)+'%';$('farmSoilBar').style.width=sm==null?'0%':Math.max(0,Math.min(100,sm))+'%';
+  const sm=d.soilMoist,abnormal=FARM_FIELDS.map(f=>[f[1],farmFieldState(f[2],d[f[2]])[1]]).filter(x=>x[1]==='偏低'||x[1]==='偏高');if($('farmSoil'))$('farmSoil').textContent=sm==null?'--':Number(sm).toFixed(1)+'%';if($('farmSoilBar'))$('farmSoilBar').style.width=sm==null?'0%':Math.max(0,Math.min(100,sm))+'%';
   $('farmSummary').textContent=sm==null?'当前还没有收到完整的土壤数据，请检查传感器连接。':(abnormal.length?'当前需要关注：'+abnormal.slice(0,3).map(x=>x[0]+x[1]).join('、')+'。建议结合天气与自动灌溉规则安排作业。':'土壤水分和主要环境指标处于常用范围，农田状态平稳，继续保持实时观察。');
   const score=sm==null?'--':Math.max(40,100-abnormal.length*9);$('farmScore').textContent=score==='--'?'--':score+'分';$('farmUpdated').textContent='最后更新：'+new Date().toLocaleTimeString();renderFarmAlerts();
 }
 function dataOnline(){const age=Number(lastData&&lastData._age);return Number.isFinite(age)?age<=10:(cfg.mode||'normal')==='normal';}
 function renderFarmMeta(){const online=dataOnline(),ssid=valveCfg.wifiSsid||cfg.ssid||'--';$('farmConnection').classList.toggle('farm-off',!online);$('farmConnectionText').textContent=online?'设备在线':'设备离线';$('farmOnline').textContent=online?'在线':'离线';$('farmDevice').textContent=cfg.device_id||'--';$('farmIp').textContent=cfg.ip||'--';$('farmWifi').textContent=ssid;$('farmSubTitle').textContent=(cfg.device_name||'农田综合驾驶舱')+(cfg.ip?' · '+cfg.ip:'');renderFarmAlerts();}
-function renderFarmValve(){if(!$('farmSwitch'))return;const manual=valveCfg.mode==='manual';$('farmAuto').classList.toggle('active',!manual);$('farmManual').classList.toggle('active',manual);$('farmSwitch').classList.toggle('on',!!valveCfg.valveOn);$('farmSwitch').disabled=false;$('farmValveText').textContent=valveCfg.valveOn?'正在灌溉':(manual?'阀门已关闭':'自动控制中');$('farmRun').textContent=valveCfg.valveOn?fmtS(displayedValveRunS()):'未运行';$('farmCount').textContent=(valveCfg.openCount==null?'--':valveCfg.openCount)+' 次';renderFarmMeta();renderFarmAlerts();}
+function stageLabel(value){return ({idle:'待机',dosing:'N/P/K 定量投料',outlet:'混合罐出料',manual_outlet:'出口泵手动',complete:'作业完成',stopped:'已停止',fault:'故障停机'}[value]||value||'待机');}
+function doseNumbers(element){const key=element.toLowerCase(),target=Number(valveCfg[key+'TargetL'])||0,delivered=Number(valveCfg[key+'DeliveredL'])||0,flow=Number(valveCfg[key+'FlowLMin'])||0,on=!!valveCfg[key+'PumpOn'];return {target,delivered,flow,on,percent:target>0?Math.min(100,delivered/target*100):0};}
+function renderDoseLine(element){const d=doseNumbers(element),id=element.toUpperCase();if($('v'+id+'State')){$('v'+id+'State').textContent=d.on?'泵与流量计运行':'停止';$('v'+id+'State').classList.toggle('on',d.on);$('v'+id+'Volume').textContent=d.delivered.toFixed(3)+' / '+d.target.toFixed(3)+' L';$('v'+id+'Flow').textContent=d.flow.toFixed(3)+' L/min';$('v'+id+'Bar').style.width=d.percent+'%';}if($('farm'+id+'State')){$('farm'+id+'State').textContent=d.on?'运行':'停止';$('farm'+id+'State').classList.toggle('on',d.on);$('farm'+id+'Volume').textContent=d.delivered.toFixed(2)+' / '+d.target.toFixed(2)+' L';}}
+function renderFertigationStatus(){const ready=valveCfg.controllerSchema==='four_relay_independent_flow_v1',testing=valveCfg.controllerSchema==='three_pump_test_rain_v1';if($('vSinglePumpStatus'))$('vSinglePumpStatus').style.display=ready?'none':'';if($('vFourPumpStatus'))$('vFourPumpStatus').style.display=ready?'':'none';if($('farmSinglePumpStatus'))$('farmSinglePumpStatus').style.display=ready?'none':'';if($('farmFourPumpStatus'))$('farmFourPumpStatus').style.display=ready?'':'none';if($('farmPumpTitle'))$('farmPumpTitle').textContent=ready?'四路泵组':(testing?'N/P/K 三路测试泵':'等待三路泵控制器');const label=ready?stageLabel(valveCfg.fertigationState):(testing?'三路独立测试':'控制器未就绪');if($('vJobStage'))$('vJobStage').textContent=label;if($('farmJobStage'))$('farmJobStage').textContent=label;['N','P','K'].forEach(renderDoseLine);const outlet=!!valveCfg.outletPumpOn,run=Number(valveCfg.outletRunSeconds)||0,target=Number(valveCfg.outletTargetSeconds)||0;if($('vOutletState')){$('vOutletState').textContent=outlet?'运行':'停止';$('vOutletState').classList.toggle('on',outlet);$('vOutletRun').textContent=run+' / '+target+' s';}if($('farmOutletState')){$('farmOutletState').textContent=outlet?'运行':'停止';$('farmOutletState').classList.toggle('on',outlet);$('farmOutletRun').textContent=run+' / '+target+' s';}}
+function renderFarmValve(){renderFertigationStatus();renderFarmMeta();renderFarmAlerts();}
 function syncFarmSwitchLabel(){const el=$('farmSwitchLabel');if(el)el.textContent=valveCfg.valveOn?'ON':'OFF';const run=displayedValveRunS();if($('vRun'))$('vRun').textContent=valveCfg.valveOn?fmtS(run):'未在浇水';if($('farmRun'))$('farmRun').textContent=valveCfg.valveOn?fmtS(run):'未运行';}
 setInterval(syncFarmSwitchLabel,500);
 function renderFarmAlerts(){
   if(!$('farmAlerts'))return;const alerts=[],online=(cfg.mode||'normal')==='normal',sm=Number(lastData.soilMoist);
-  if(valveCfg.valveOn)alerts.push(['good','水泵正在运行 · '+fmtS(valveCfg.runS)]);
+  if(valveCfg.jobActive)alerts.push(['good','水肥作业进行中 · '+stageLabel(valveCfg.fertigationState)]);
+  if(valveCfg.fertigationState==='fault')alerts.push(['bad','泵组故障：'+(valveCfg.error||'请检查流量计')]);
   if(farmWeatherData){const rain=Math.max(0,...(farmWeatherData.hourly?.precipitation_probability||[]).slice(0,12).map(Number));if(rain>=60)alerts.push(['warn','未来 12 小时降雨概率较高']);}
   $('farmAlerts').innerHTML=alerts.map(x=>'<div class="farm-alert '+x[0]+'">'+x[1]+'</div>').join('');
 }
@@ -525,13 +525,15 @@ new MutationObserver(sanitizeRetiredText).observe(document.body,{childList:true,
 async function farmSetMode(mode){$('farmValveOut').textContent='切换中…';const ok=await setMode(mode);$('farmValveOut').textContent=ok?(mode==='manual'?'已切到手动模式':'已切到自动模式'):'模式切换未确认';}
 async function farmToggleValve(){if(valveBusy)return;const action=valveCfg.valveOn?'close':'open';$('farmValveOut').textContent=action==='open'?'正在开启…':'正在关闭…';const ok=await manualValve(action);$('farmValveOut').textContent=ok?(action==='open'?'水泵已开启':'水泵已关闭'):'水泵操作未确认';}
 async function farmRefresh(){await Promise.all([tick(),loadCfg(),loadValve(),loadWeather()]);}
-function farmUpdateStages(){const crop=$('farmCrop').value,stage=$('farmStage'),previous=stage.value;stage.innerHTML=(STAGES[crop]||[]).map(x=>'<option'+(x===previous?' selected':'')+'>'+x+'</option>').join('');}
- function openFarmSettings(){const map=[['farmArea',$('areaMu').value],['farmDays',$('daysSince').value],['farmOnTh',valveCfg.onTh],['farmOffTh',valveCfg.offTh],['farmMinRun',valveCfg.minRunS],['farmMaxRun',valveCfg.maxRunS],['farmMainFlow',$('mainFlow').value],['farmAFlow',$('aFlow').value],['farmAConcentration',$('aConcentration').value],['farmBFlow',$('bFlow').value],['farmBConcentration',$('bConcentration').value],['farmCFlow',$('cFlow').value],['farmCConcentration',$('cConcentration').value]];map.forEach(x=>$(x[0]).value=x[1]??'');$('farmSettingsOut').textContent='';$('farmSettings').classList.add('open');}
+function openFarmSettings(){[['farmNConcentration','nConcentration'],['farmPConcentration','pConcentration'],['farmKConcentration','kConcentration']].forEach(x=>$(x[0]).value=$(x[1]).value);$('farmSettingsOut').textContent='';$('farmSettings').classList.add('open');}
 function closeFarmSettings(){$('farmSettings').classList.remove('open');}
 function farmModalBackdrop(event){if(event.target===$('farmSettings'))closeFarmSettings();}
 async function saveFarmSettings(){
-  const on=Number($('farmOnTh').value),off=Number($('farmOffTh').value),min=Number($('farmMinRun').value),max=Number($('farmMaxRun').value);if(!Number.isFinite(on)||!Number.isFinite(off)||!Number.isFinite(min)||!Number.isFinite(max)||on<0||off>100||min<0||max<1||on>=off||min>=max){$('farmSettingsOut').textContent='请检查阈值：开阀值需小于关阀值，最短运行需小于最长运行。';return;}
-  $('vOnTh').value=on;$('vOffTh').value=off;$('vMinRun').value=min;$('vMaxRun').value=max;$('areaMu').value=$('farmArea').value;$('daysSince').value=$('farmDays').value;$('mainFlow').value=$('farmMainFlow').value;$('aFlow').value=$('farmAFlow').value;$('aConcentration').value=$('farmAConcentration').value;$('bFlow').value=$('farmBFlow').value;$('bConcentration').value=$('farmBConcentration').value;$('cFlow').value=$('farmCFlow').value;$('cConcentration').value=$('farmCConcentration').value;$('farmSettingsOut').textContent='正在保存灌溉规则…';await saveTh();$('farmSettingsOut').textContent=$('vOut').textContent;await loadValve();if($('vOut').textContent.includes('已发送'))setTimeout(closeFarmSettings,700);
+  const values=['farmNConcentration','farmPConcentration','farmKConcentration'].map(id=>Number($(id).value));
+  if(values.some((value,index)=>!Number.isFinite(value)||value<=0||value>10000||!$(['farmNConcentration','farmPConcentration','farmKConcentration'][index]).checkValidity())){$('farmSettingsOut').textContent='三种母液浓度必须在 0 到 10000 g/L 之间';return;}
+  ['nConcentration','pConcentration','kConcentration'].forEach((id,index)=>$(id).value=values[index]);
+  localStorage.setItem('zhirun-v2-concentrations',JSON.stringify(values));
+  $('farmSettingsOut').textContent='母液浓度已保存';setTimeout(closeFarmSettings,600);
 }
 function tab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='p-'+name));
@@ -541,16 +543,16 @@ function tab(name){
   if(name==='model')checkInfer();
   if(name==='valve')loadValve();
 }
-// ---- 面板1: 实时数据 (schema 驱动, 华为 Atlas 已移除; 新传感器排在末尾) ----
+// ---- 面板1: 实时数据 (schema 驱动) ----
 // 只建一次网格, 之后每帧只更新数字, 避免 innerHTML 整片重建带来的闪烁/丢 hover。
 function cardHtml(f){
   return '<div class="card" data-key="'+f.key+'"><div class="label">'+f.label+'</div>'+
          '<div class="val"><span class="num">--</span><span class="unit">'+(f.unit||'')+'</span></div></div>';
 }
 let lastData={}, gridBuilt=false, gridOrder=[];
-const DASHBOARD_HIDDEN_KEYS=new Set(['latitude','longitude','gpsSatellites','gpsSpeed','gpsConnected','gpsFixQuality']);
+const DASHBOARD_HIDDEN_KEYS=new Set();
 function orderFields(){
-  // 只展示环境/传感器字段, ai 组(华为 Atlas)不再显示。headline 在前, 其它按 schema 顺序排在后面。
+  // 只展示环境/传感器字段。headline 在前, 其它按 schema 顺序排在后面。
   const vis=schema.filter(f=>f.group!=='ai'&&f.type!=='text'&&!DASHBOARD_HIDDEN_KEYS.has(f.key));
   const head=vis.filter(f=>f.group==='headline'), rest=vis.filter(f=>f.group!=='headline');
   return head.concat(rest);
@@ -707,7 +709,7 @@ function renderFarmWeather(d){
   const dates=daily.time||[],codes=daily.weather_code||[],highs=daily.temperature_2m_max||[],lows=daily.temperature_2m_min||[],rains=daily.precipitation_probability_max||[];$('farmForecast').innerHTML=dates.slice(0,3).map((date,i)=>'<div class="farm-day">'+(i===0?'今天':date.slice(5))+'<b>'+weatherIcon(codes[i])+' '+weatherNum(highs[i],'°',0)+'</b><span>'+weatherNum(lows[i],'°',0)+' · 雨 '+weatherNum(rains[i],'%',0)+'</span></div>').join('');renderFarmAlerts();
 }
 // ---- 面板2: 阈值阀 (电磁阀控制) ----
-let valveCfg={mode:'auto',manualOpen:false,valveOn:false,onTh:30,offTh:55,minRunS:15,maxRunS:180,runS:0,openCount:0,soilMoist:null,wifiConnected:false,wifiSsid:''};
+let valveCfg={controllerSchema:'',mode:'manual',manualOpen:false,valveOn:false,onTh:30,offTh:55,minRunS:15,maxRunS:180,runS:0,openCount:0,soilMoist:null,wifiConnected:false,wifiSsid:'',fertigationState:'idle',jobActive:false,nPumpOn:false,pPumpOn:false,kPumpOn:false,outletPumpOn:false,nTargetL:0,pTargetL:0,kTargetL:0,nDeliveredL:0,pDeliveredL:0,kDeliveredL:0,nFlowLMin:0,pFlowLMin:0,kFlowLMin:0,outletRunSeconds:0,outletTargetSeconds:0};
 let valveBusy=false;
 let manualIntent=null;
 let valveRunBaseS=0,valveRunSyncedAt=Date.now();
@@ -737,6 +739,8 @@ function syncValveRange(source){
 }
 const VALVE_MESSAGES={
   command_queued:'指令已发送，等待设备确认',serial_device_offline:'设备离线，无法发送指令',
+  four_relay_firmware_required:'ESP32 尚未升级四路独立流量固件，禁止启动投料',
+  three_pump_firmware_required:'ESP32 三路测试固件尚未就绪',invalid_pump_test:'泵测试参数无效',
   manual_mode_required:'请先切换到手动模式',mode_updated:'控制模式已更新',manual_updated:'阀门状态已更新',
   bad_mode:'控制模式无效',bad_manual_action:'阀门操作无效',invalid_config:'阈值设置无效',
   weather_unavailable:'服务暂时不可用',bad_json:'请求内容无效'
@@ -761,10 +765,22 @@ function renderValve(){
   if(c.valveOn){st.textContent='正在浇水';st.className='v on';}
   else{st.textContent='已关闭';st.className='v off';}
   const gpio=$('vGpio');
-  const gpioHigh=c.gpioHigh===undefined?c.gpio42High:c.gpioHigh;
+  const gpioHigh=c.gpio4High!==undefined?c.gpio4High:(c.gpioHigh===undefined?c.gpio42High:c.gpioHigh);
   if(gpioHigh===true){gpio.textContent='高电平（控制信号已输出）';gpio.className='v on';}
   else if(gpioHigh===false){gpio.textContent='低电平（停止信号）';gpio.className='v off';}
   else{gpio.textContent='等待设备上报';gpio.className='v';}
+  if($('vIn1State')){$('vIn1State').textContent=c.valveOn?'运行':'停止';$('vIn1State').className='v '+(c.valveOn?'on':'off');}
+  if($('vIn1Gpio')){$('vIn1Gpio').textContent=gpioHigh===true?'高电平':'低电平';$('vIn1Gpio').className='v '+(gpioHigh===true?'on':'off');}
+  if($('farmIn1State')){$('farmIn1State').textContent=c.valveOn?'运行':'停止';$('farmIn1State').classList.toggle('on',!!c.valveOn);}
+  if($('farmIn1Gpio'))$('farmIn1Gpio').textContent=gpioHigh===true?'GPIO4 高电平':'GPIO4 低电平';
+  [['N',4,'nPumpOn','gpio4High'],['P',5,'pPumpOn','gpio5High'],['K',6,'kPumpOn','gpio6High']].forEach(item=>{
+    const [name,pin,stateKey,gpioKey]=item,on=!!c[stateKey],high=c[gpioKey]===true;
+    const state=$('vTest'+name+'State'),level=$('vTest'+name+'Gpio'),farmState=$('farmTest'+name+'State'),farmLevel=$('farmTest'+name+'Gpio');
+    if(state){state.textContent=on?'运行':'停止';state.classList.toggle('on',on);}
+    if(level){level.textContent=high?'高电平':'低电平';level.classList.toggle('on',high);}
+    if(farmState){farmState.textContent=on?'运行':'停止';farmState.classList.toggle('on',on);}
+    if(farmLevel)farmLevel.textContent='GPIO'+pin+' '+(high?'高电平':'低电平');
+  });
   const soilStatus=$('vSoilStatus'),soilBar=$('vSoilBar');
   $('vSoil').textContent=c.soilMoist==null?'--':c.soilMoist.toFixed(1)+'%';
   soilStatus.classList.toggle('no-data',c.soilMoist==null);
@@ -775,7 +791,7 @@ function renderValve(){
   // command endpoint itself reports failures, while keeping stop available.
   $('vOpen').disabled=false;$('vClose').disabled=false;
   $('vOpen').classList.toggle('on',man&&c.valveOn);$('vClose').classList.toggle('on',man&&!c.valveOn);
-  $('vManHint').textContent=valveBusy?'（正在等待设备确认）':'（手动模式：土壤湿度不会自动关阀）';
+  $('vManHint').textContent=valveBusy?'（正在等待设备确认）':'（高电平启动，最长 180 秒）';
   $('vSoilMessage').textContent=c.soilMoist==null?'暂未获取数据，请检查土壤传感器连接。':(c.soilMoist<c.onTh?'土壤偏干，已达到开始浇水条件。':(c.soilMoist>=c.offTh?'土壤湿润，暂时不需要浇水。':'水分处于舒适区间，保持观察。'));
   renderFarmValve();
 }
@@ -850,31 +866,30 @@ async function manualValve(act){
   }catch(e){$('vOut').textContent='操作失败，请确认设备在线';return false;}
   finally{valveBusy=false;renderValve();}
 }
+async function pumpTest(pump,act){
+  const labels={n:'N 肥泵',p:'P 肥泵',k:'K 肥泵'},name=labels[pump]||pump,stateKey=pump+'PumpOn',target=act==='open';
+  $('vOut').textContent=(act==='open'?'正在启动 ':'正在停止 ')+name+'…';
+  if($('farmValveOut'))$('farmValveOut').textContent=$('vOut').textContent;
+  try{
+    const r=await fetchTO('/pump/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pump,action:act})},8000),d=await r.json();
+    if(!d.ok){const text=valveMessage(d.message,'泵测试指令失败');$('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;return false;}
+    let text=name+(target?'启动':'停止')+'指令已发送，等待 ESP32 确认…';
+    $('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;
+    const confirmed=await waitValveState(s=>String(s.lastCommandId||'')===String(d.command_id)&&!!s[stateKey]===target,15000);
+    text=confirmed?(name+(target?'已启动':'已停止')):(name+'未收到 ESP32 状态确认，请检查控制链路');
+    $('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;
+    return confirmed;
+  }catch(e){
+    const text='操作失败，请确认设备在线';$('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;return false;
+  }
+}
 // ---- 面板3: 模型 (实时数据 -> 水肥策略服务) ----
 let modelData={};
-window.ZHIRUN_UI_BUILD='20260818-manual-control-fix';
-const STAGES={"马铃薯":["苗期","块茎形成","块茎膨大","成熟"],"甜菜":["苗期","叶丛快速生长","块根膨大","糖分积累"],"玉米":["苗期","拔节大喇叭口","抽雄吐丝","灌浆","成熟"],"向日葵":["苗期","现蕾","开花","灌浆","成熟"]};
-function updateStages(){const s=$('stage'),previous=s.value,list=STAGES[$('crop').value]||[];s.innerHTML=list.map(x=>'<option'+(x===previous?' selected':'')+'>'+x+'</option>').join('');}
-function setSensorReading(id,value,digits=1){
-  const el=$(id),valid=Number.isFinite(value);if(!el)return;
-  el.textContent=valid?value.toFixed(digits):'--';el.classList.toggle('waiting',!valid);
-}
+window.ZHIRUN_UI_BUILD='20260827-fertigation-v2';
+function modelNumber(value,digits=1){const number=Number(value);return Number.isFinite(number)?number.toFixed(digits):'--';}
 function syncModelSensor(){
-  const dataNumber=value=>value==null||value===''?NaN:Number(value);
-  const moisture=dataNumber(modelData.soilMoist),fc=dataNumber(modelData.fieldCapacity),ec=dataNumber(modelData.soilEc??modelData.soilEC);
-  setSensorReading('sensorMoisture',moisture,1);
-  $('moisture20').value=Number.isFinite(moisture)?moisture.toFixed(1):'';
-  if(Number.isFinite(fc)&&!$('fieldCapacity').value)$('fieldCapacity').value=fc.toFixed(1);
-  if(Number.isFinite(ec)&&!$('soilEc').value)$('soilEc').value=ec.toFixed(2);
-  syncModelInputs();
-}
-function syncModelInputs(){
-  const inputNumber=id=>{const value=$(id).value.trim();return value===''?NaN:Number(value);};
-  setSensorReading('sensorEc',inputNumber('soilEc'),2);
-  setSensorReading('sensorFieldCapacity',inputNumber('fieldCapacity'),1);
-  setSensorReading('sensorAppliedN',inputNumber('appliedN'),2);
-  setSensorReading('sensorAppliedP',inputNumber('appliedP'),2);
-  setSensorReading('sensorAppliedK',inputNumber('appliedK'),2);
+  const values={modelSoilMoist:['soilMoist',1],modelSoilTemp:['soilTemp',1],modelSoilEc:['soilEc',2],modelSoilPh:['soilPH',1],modelN:['n',0],modelP:['p',0],modelK:['k',0],modelRain:['rainMm',1],modelAirTemp:['airTemp',1],modelAirHum:['airHum',1],modelWind:['windSpeed',1],modelLux:['lux',0]};
+  Object.entries(values).forEach(([id,entry])=>{const el=$(id);if(el)el.textContent=modelNumber(modelData[entry[0]],entry[1]);});
 }
 function inferBase(){
   return publicServiceBase()+'/fertigation';
@@ -882,44 +897,49 @@ function inferBase(){
 async function checkInfer(){
   const base=inferBase();
   const el=$('mHealth');
-  el.textContent='检测推理服务中…';el.className='mstat';
+  el.textContent='检测服务器模型中…';el.className='mstat';
   try{const h=await (await fetch(base+'/health',{cache:'no-store'})).json();
-    if(h.loaded){el.textContent='✅ 水肥策略服务在线 · 模型已加载';el.className='mstat ok';}
+    if(h.loaded&&h.schema==='fertigation_v2_automatic_environment'){el.textContent='服务器在线 · '+(h.ml_loaded?'ExtraTrees 已加载':'规则安全降级');el.className='mstat ok';}
+    else if(h.loaded){el.textContent='服务器仍运行旧模型接口';el.className='mstat bad';}
     else{el.textContent='⚠️ 服务在线但模型未就绪：'+(h.hint||h.error||'加载中');el.className='mstat bad';}
-  }catch(e){el.textContent='❌ 连不上推理服务，请确认电脑已运行 infer_server.py 且地址正确';el.className='mstat bad';}
+  }catch(e){el.textContent='服务器模型不可用';el.className='mstat bad';}
+}
+let lastModelResult=null;
+const PHASE_NAMES={PREFLUSH:'主水预冲',DOSE_A:'N 母液投料',DOSE_B:'P₂O₅ 母液投料',DOSE_C:'K₂O 母液投料',INTER_TANK_FLUSH:'肥路隔离冲洗',MIXING:'混合',IRRIGATE_AND_POSTFLUSH:'灌溉与后冲',COMPLETE:'完成'};
+function phaseTarget(phase){if(phase.target_solution_l!=null)return phase.target_solution_l+' L';if(phase.main_water_target_l!=null)return phase.main_water_target_l+' L';if(phase.mix_duration_s!=null)return phase.mix_duration_s+' s';if(phase.main_water_close_at_total_l!=null)return '累计 '+phase.main_water_close_at_total_l+' L';return '全部关闭';}
+function activeOutputs(phase){return Object.entries(phase.outputs||{}).filter(item=>item[1]).map(item=>item[0]).join(' + ')||'全部关闭';}
+function renderModelResult(payload){
+  const t=payload.decision||{},result=payload.result||{},job=result.job||{},auto=result.automatic_inputs||{},forecast=auto.forecast_summary||{},hardware=result.hardware||{},pumps=hardware.pumps||{};
+  const nutrients=[['灌水量',t.irrigation_m3_mu,'m³/亩'],['氮 N',t.nitrogen_kg_mu,'kg/亩'],['磷 P₂O₅',t.p2o5_kg_mu,'kg/亩'],['钾 K₂O',t.k2o_kg_mu,'kg/亩']];
+  const pumpRows=[['N',pumps.N_PUMP],['P₂O₅',pumps.P_PUMP],['K₂O',pumps.K_PUMP]].map(item=>'<div><span>'+item[0]+' 母液</span><b>'+modelNumber(item[1]?.target_solution_l,3)+' L</b></div>').join('');
+  const phaseRows=(job.phases||[]).map(phase=>'<div><span>'+PHASE_NAMES[phase.state]+'</span><b>'+activeOutputs(phase)+' · '+phaseTarget(phase)+'</b></div>').join('');
+  const forecastRows='<div><span>生育阶段</span><b>'+String(t.stage||'--')+'</b></div><div><span>根区水分</span><b>'+modelNumber(t.root_zone_moisture_pct,1)+'%</b></div><div><span>未来 2 日雨量</span><b>'+modelNumber(forecast.rain_next_2d_mm,1)+' mm</b></div><div><span>未来日均 ET₀</span><b>'+modelNumber(forecast.eto_daily_mm,1)+' mm</b></div>';
+  const alerts=(t.alerts||[]).length?(t.alerts||[]).join('；'):'安全门通过，无附加告警';
+  $('result').innerHTML='<div class="decision-head"><div><h3>'+String(t.crop||'玉米')+' · '+String(t.stage||'自动识别')+'</h3><div class="sub">动态触发 '+modelNumber(Number(t.dynamic_trigger_relative_fc)*100,1)+'% FC · 相对田间持水量 '+modelNumber(Number(t.relative_field_capacity)*100,1)+'%</div></div><span class="decision-badge '+(t.irrigate?'':'blocked')+'">'+(t.irrigate?(t.fertigate?'建议水肥':'仅建议灌水'):'保持关闭')+'</span></div><div class="decision-metrics">'+nutrients.map(item=>'<div class="decision-metric"><span>'+item[0]+'</span><b>'+modelNumber(item[1],2)+'</b><small>'+item[2]+'</small></div>').join('')+'</div><div class="model-result-grid"><section class="result-section"><h4>母液目标体积</h4><div class="model-list">'+pumpRows+'</div></section><section class="result-section"><h4>自动环境与预报</h4><div class="model-list">'+forecastRows+'</div></section><section class="result-section"><h4>硬件阶段工作单</h4><div class="model-list">'+phaseRows+'</div></section></div><div class="model-alerts">'+alerts+'。当前 ESP32 为三路继电器测试固件，工作单仅供查看，不会自动启动水泵。</div>';
+  $('modelResult').classList.add('has-result');
 }
 async function predict(){
   const base=inferBase();
   const numeric=id=>{const value=$(id).value.trim();return value===''?null:Number(value);};
-  const moisture=numeric('moisture20');
-  if(!Number.isFinite(moisture)){$('mOut').textContent='等待土壤墒情传感器数据后再生成建议';return;}
-  const requiredIds=['areaMu','daysSince','mainFlow','aFlow','aConcentration','bFlow','bConcentration','cFlow','cConcentration','appliedN','appliedP','appliedK'];
-  const invalid=requiredIds.find(id=>!Number.isFinite(numeric(id))||!$(id).checkValidity())||['fieldCapacity','soilEc'].find(id=>numeric(id)!==null&&!$(id).checkValidity());
-  if(invalid){$('mOut').textContent='请检查表单，所有必填项都需要有效数字';return;}
-  $('predictBtn').disabled=true;$('mOut').textContent='正在计算水肥建议…';$('result').innerHTML='';$('result').closest('.fert-result').classList.remove('has-result');$('result').closest('.fert-board').classList.remove('has-result');
+  const requiredIds=['nConcentration','pConcentration','kConcentration'];
+  const invalid=requiredIds.find(id=>!Number.isFinite(numeric(id))||!$(id).checkValidity());
+  if(invalid){$('mOut').textContent='请填写有效的 N、P₂O₅、K₂O 母液浓度';return null;}
+  $('predictBtn').disabled=true;$('mOut').textContent='服务器正在运行 V2 模型…';$('modelResult').classList.remove('has-result');
   try{
-    const body={crop:$('crop').value,stage:$('stage').value,area_mu:numeric('areaMu'),days_since_fertigation:numeric('daysSince'),soil_profile:'土默川中',moisture20:moisture,soil_n_level:'medium',soil_p_level:'medium',soil_k_level:'medium',n_applied_stage:numeric('appliedN'),p_applied_stage:numeric('appliedP'),k_applied_stage:numeric('appliedK'),main_flow_l_min:numeric('mainFlow'),a_flow_l_min:numeric('aFlow'),a_concentration_g_l:numeric('aConcentration'),b_flow_l_min:numeric('bFlow'),b_concentration_g_l:numeric('bConcentration'),c_flow_l_min:numeric('cFlow'),c_concentration_g_l:numeric('cConcentration')};
-    const fieldCapacity=numeric('fieldCapacity'),soilEc=numeric('soilEc');
-    if(Number.isFinite(fieldCapacity))body.field_capacity=fieldCapacity;
-    if(Number.isFinite(soilEc))body.soil_ec=soilEc;
+    const body={n_concentration_g_l:numeric('nConcentration'),p_concentration_g_l:numeric('pConcentration'),k_concentration_g_l:numeric('kConcentration'),airTemp:lastData.airTemp,airHum:lastData.airHum,co2:lastData.co2,soilMoist:lastData.soilMoist,soilTemp:lastData.soilTemp,soilPH:lastData.soilPH,soilEc:lastData.soilEc,n:lastData.n,p:lastData.p,k:lastData.k,windSpeed:lastData.windSpeed,lux:lastData.lux,rainMm:lastData.rainMm,latitude:lastData.latitude,longitude:lastData.longitude};
     const r=await fetch(base+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
-    if(!d.ok){$('mOut').textContent='计算失败：'+(d.error||'未知错误');$('predictBtn').disabled=false;return;}
-    $('mOut').textContent='';
-    const t=d.decision,area=Number($('areaMu').value)||1;
-    const j=t.job,doses=j.doses.map(x=>'<div class="ri"><span>'+x.valve+' 阀 · '+x.nutrient+'</span><b>'+x.solution_l+' L</b><span>约 '+x.estimated_seconds+' 秒</span></div>').join('')||'<div class="ri"><span>本次不注肥</span><span></span><span></span></div>',phases=j.phases.map((x,i)=>'<div class="ri"><span>'+(i+1)+'. '+x.name+'</span><b>'+x.open_valves+'</b><span>'+x.target+'</span></div>').join('');
-    let html='<div class="rtop"><div class="cn">'+(t.irrigate?'建议灌水':'本次无需灌水')+'</div><div class="cf">根区水分 '+t.root_zone_moisture_pct+'% · 相对田间持水量 '+(t.relative_field_capacity*100).toFixed(1)+'%</div></div>'+
-      '<div class="rlist"><div class="ri"><span>灌水量</span><b>'+t.irrigation_m3_mu+' m³/亩</b><span>合计 '+(t.irrigation_m3_mu*area).toFixed(1)+' m³</span></div><div class="ri"><span>氮 N</span><b>'+t.nitrogen_kg_mu+' kg/亩</b><span>合计 '+(t.nitrogen_kg_mu*area).toFixed(2)+' kg</span></div><div class="ri"><span>磷 P₂O₅</span><b>'+t.p2o5_kg_mu+' kg/亩</b><span>合计 '+(t.p2o5_kg_mu*area).toFixed(2)+' kg</span></div><div class="ri"><span>钾 K₂O</span><b>'+t.k2o_kg_mu+' kg/亩</b><span>合计 '+(t.k2o_kg_mu*area).toFixed(2)+' kg</span></div></div><h3 style="margin:18px 0 8px">母液目标量</h3><div class="rlist">'+doses+'</div><h3 style="margin:18px 0 8px">四阀工作单</h3><div class="rlist">'+phases+'</div><div class="note">主水目标：'+j.target_main_water_l+' L，预计 '+j.estimated_main_seconds+' 秒。<br>'+j.interlocks+'<br>气象基准日期：'+t.weather_date+'<br>'+t.warning+'</div>';
-    $('result').innerHTML=html;$('result').closest('.fert-result').classList.add('has-result');$('result').closest('.fert-board').classList.add('has-result');
-  }catch(e){$('mOut').textContent='请求失败：无法连接推理服务';}
-  $('predictBtn').disabled=false;
+    if(!d.ok)throw new Error(d.error||'模型计算失败');
+    lastModelResult=d;renderModelResult(d);$('mOut').textContent='工作单已由服务器 V2 模型生成';return d;
+  }catch(e){$('mOut').textContent='计算失败：'+e.message;return null;}
+  finally{$('predictBtn').disabled=false;}
 }
+async function stopFertigation(){try{const r=await fetchTO('/fertigation/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),d=await r.json();const text=d.ok?'全部停止指令已发送':valveMessage(d.message,'停止指令失败');$('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;setTimeout(loadValve,700);return !!d.ok;}catch(e){$('vOut').textContent='停止指令发送失败';return false;}}
 async function farmPredict(){
-  const moisture=Number(lastData.soilMoist);if(!Number.isFinite(moisture)){$('farmAdviceResult').innerHTML='<div class="farm-advice-note">等待土壤墒情传感器数据后再生成建议。</div>';return;}
-  $('crop').value=$('farmCrop').value;updateStages();$('stage').value=$('farmStage').value;$('farmPredictBtn').disabled=true;$('farmAdviceResult').innerHTML='<div class="farm-advice-note">正在计算水肥建议…</div>';
-  await predict();
-  const result=$('result'),decision=result.querySelector('.rtop .cn'),items=result.querySelectorAll('.rlist .ri');if(!decision){$('farmAdviceResult').innerHTML='<div class="farm-advice-note">'+($('mOut').textContent||'暂时无法生成建议，请检查策略服务。')+'</div>';$('farmPredictBtn').disabled=false;return;}
-  const labels=['灌水量','氮 N','磷 P₂O₅','钾 K₂O'],cards=[];for(let i=0;i<Math.min(4,items.length);i++){const b=items[i].querySelector('b');cards.push('<div class="farm-advice-item"><span>'+labels[i]+'</span><b>'+(b?b.textContent:'--')+'</b></div>');}$('farmAdviceResult').innerHTML=cards.join('')+'<div class="farm-advice-note"><b>'+decision.textContent+'</b>。详细母液目标量和四阀工作单可在经典模式的模型页查看。</div>';$('farmPredictBtn').disabled=false;
+  $('farmPredictBtn').disabled=true;$('farmAdviceResult').innerHTML='<div class="farm-advice-note">服务器正在运行 V2 模型…</div>';
+  const d=await predict();if(!d){$('farmAdviceResult').innerHTML='<div class="farm-advice-note">'+$('mOut').textContent+'</div>';$('farmPredictBtn').disabled=false;return;}
+  const t=d.decision,pumps=d.result.hardware.pumps,cards=[['灌水量',modelNumber(t.irrigation_m3_mu,1)+' m³/亩'],['N 母液',modelNumber(pumps.N_PUMP.target_solution_l,2)+' L'],['P₂O₅ 母液',modelNumber(pumps.P_PUMP.target_solution_l,2)+' L'],['K₂O 母液',modelNumber(pumps.K_PUMP.target_solution_l,2)+' L']];
+  $('farmAdviceResult').innerHTML=cards.map(item=>'<div class="farm-advice-item"><span>'+item[0]+'</span><b>'+item[1]+'</b></div>').join('')+'<div class="farm-advice-note"><b>'+t.crop+' · '+t.stage+'</b>：'+(t.irrigate?(t.fertigate?'建议执行水肥工作单':'仅建议灌水'):'当前安全门要求保持关闭')+'。当前测试固件不会自动执行。</div>';$('farmPredictBtn').disabled=false;
 }
 // ---- 面板3: 联网 ----
 function renderNet(){
@@ -928,12 +948,12 @@ function renderNet(){
   const wired=cfg.network_type==='ethernet';
   $('wifiList').parentElement.style.display='';
   $('ssidManual').closest('.wifi-section').style.display='';
-  if(attempt&&attempt.status==='connecting')current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📶</span><span class="wifi-name">H3C 正在连接 '+attempt.ssid+'<small>切换中仍可通过电脑直连管理 Atlas</small></span></div>';
+  if(attempt&&attempt.status==='connecting')current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📶</span><span class="wifi-name">网络正在连接 '+attempt.ssid+'<small>切换期间仍可通过以太网管理 RK3506B</small></span></div>';
   else if(attempt&&attempt.status==='failed')current.innerHTML='<div class="wifi-current"><span class="wifi-icon">⚠️</span><span class="wifi-name">未能连接 '+attempt.ssid+'<small>请检查密码或热点设置后重试</small></span></div>';
-  else if(valveCfg.wifiConnected&&valveCfg.wifiSsid)current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📶</span><span class="wifi-name">'+valveCfg.wifiSsid+'<small>H3C 中继已连接'+(valveCfg.wifiRadio?' · '+valveCfg.wifiRadio:'')+'</small></span></div>';
-  else if(wired){const online=!!cfg.network_connected,iface=cfg.network_interface||'eth0',gateway=cfg.network_gateway||'--';current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📴</span><span class="wifi-name">H3C 中继 '+(online?'状态待确认':'未连接')+'<small>Atlas 接口 '+iface+' · 网关 '+gateway+'</small></span></div>';}
-  else current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📴</span><span class="wifi-name">H3C 未连接上联 Wi-Fi<small>请选择下方网络进行连接</small></span></div>';
-  const ssid=valveCfg.wifiSsid||cfg.ssid||'--',connected=!!valveCfg.wifiConnected;
+  else if((valveCfg.wifiConnected||cfg.network_type==='wifi')&&(valveCfg.wifiSsid||cfg.ssid))current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📶</span><span class="wifi-name">'+(valveCfg.wifiSsid||cfg.ssid)+'<small>RK3506B 板载 Wi-Fi 已连接'+(valveCfg.wifiRadio?' · '+valveCfg.wifiRadio:'')+'</small></span></div>';
+  else if(wired){const online=!!cfg.network_connected,iface=cfg.network_interface||'eth0',gateway=cfg.network_gateway||'--';current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📴</span><span class="wifi-name">以太网 '+(online?'已连接':'未连接')+'<small>RK3506B 接口 '+iface+' · 网关 '+gateway+'</small></span></div>';}
+  else current.innerHTML='<div class="wifi-current"><span class="wifi-icon">📴</span><span class="wifi-name">RK3506B 未连接 Wi-Fi<small>请选择下方网络进行连接</small></span></div>';
+  const ssid=valveCfg.wifiSsid||cfg.ssid||'--',connected=!!valveCfg.wifiConnected||cfg.network_type==='wifi';
   const hotspot=!!valveCfg.localHotspot,ip=cfg.ip||'--';
   $('apState').textContent=hotspot?'已开启':'已关闭';
   $('apState').className=hotspot?'v on':'v';
@@ -941,7 +961,7 @@ function renderNet(){
   $('apOpen').disabled=hotspot;$('apClose').disabled=!hotspot;
   $('netState').innerHTML=
     '<div class="kv"><span class="k">运行模式</span><span>'+(MODE_TXT[m]||m)+'</span></div>'+
-    '<div class="kv"><span class="k">H3C 上联</span><span>'+(connected?'已连接 '+ssid:'未连接')+'</span></div>'+
+    '<div class="kv"><span class="k">板载 Wi-Fi</span><span>'+(connected?'已连接 '+ssid:'未连接')+'</span></div>'+
     '<div class="kv"><span class="k">本机 IP</span><span>'+ip+'</span></div>'+
     '<div class="kv"><span class="k">设备编号</span><span>'+(cfg.device_id||'--')+'</span></div>';
 }
@@ -951,28 +971,32 @@ async function setLocalHotspot(enabled){
     const d=await r.json();out.textContent=d.ok?(enabled?'热点指令已下发，约 3 秒后在手机或电脑的 Wi-Fi 列表中连接设备热点，再打开 http://192.168.4.1/':'关闭热点指令已下发'):(d.message||'操作失败');if(d.ok){valveCfg.localHotspot=enabled;renderNet();setTimeout(loadValve,1200);setTimeout(loadValve,3000);}}
   catch(e){out.textContent='操作失败，设备需保持在线';}
 }
-// H3C 中继配网: 扫 Wi-Fi -> 选 -> 填密码 -> 切换 H3C 上联
+// RK3506B 板载 Wi-Fi 配网: 扫描 -> 选择 -> 填写密码 -> 切换网络
 function chooseWifi(button){const open=button.classList.contains('selected');document.querySelectorAll('.wifi-item').forEach(x=>x.classList.remove('selected'));if(!open){button.classList.add('selected');const input=button.nextElementSibling.querySelector('input');if(input)input.focus();}}
 function toggleWifiPassword(button){const input=button.parentElement.querySelector('input');if(!input)return;const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'◉':'◌';button.title=show?'隐藏密码':'显示密码';}
-async function scan(){const listBox=$('wifiList'),before=Number(valveCfg.wifiScannedAt||0);listBox.innerHTML='<div class="sub" style="padding:15px">H3C 正在扫描附近 Wi-Fi，约需 10–30 秒…</div>';
+async function scan(){const listBox=$('wifiList'),before=Number(valveCfg.wifiScannedAt||0);listBox.innerHTML='<div class="sub" style="padding:15px">RK3506B 正在扫描附近 Wi-Fi，约需 10–30 秒…</div>';
   try{const q=await fetchTO('/network/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),queued=await q.json();if(!queued.ok)throw new Error('offline');let data={networks:[]};for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,1200));data=await (await fetchTO('/network/scan')).json();if(Number(data.scanned_at||0)>before)break;}const networks=data.networks||[];valveCfg.wifiScannedAt=data.scanned_at;listBox.innerHTML=networks.length?networks.map(w=>{const ssid=String(w.ssid).replace(/"/g,'&quot;'),label=String(w.ssid).replace(/</g,'&lt;'),radio=String(w.radio||'').replace(/"/g,'&quot;'),auth=String(w.auth||'').replace(/"/g,'&quot;'),bssid=String(w.bssid||'').replace(/"/g,'&quot;'),attrs=' data-ssid="'+ssid+'" data-radio="'+radio+'" data-auth="'+auth+'" data-bssid="'+bssid+'"';if(!w.lock)return '<button class="wifi-item"'+attrs+' onclick="connectScannedNetwork(this,\'\')"><span class="wifi-icon">📶</span><span class="wifi-name">'+label+'<small>开放网络 · '+radio+'</small></span><span class="wifi-meta">'+w.rssi+' dBm</span></button>';const password='<div class="wifi-password"><input class="in" type="password" placeholder="输入 '+label+' 的密码"><button class="btn wifi-eye" title="显示密码" onclick="toggleWifiPassword(this)">◌</button></div>';return '<button class="wifi-item"'+attrs+' onclick="chooseWifi(this)"><span class="wifi-icon">🔒</span><span class="wifi-name">'+label+'<small>安全 · '+radio+'</small></span><span class="wifi-meta">'+w.rssi+' dBm</span></button><div class="wifi-connect">'+password+'<button class="btn pri" style="margin:0" onclick="connectScannedNetwork(this.parentElement.previousElementSibling,this.parentElement.querySelector(\'input\').value)">连接</button></div>';}).join(''):'<div class="sub" style="padding:15px">未扫描到 Wi-Fi。</div>';}
   catch(e){listBox.innerHTML='<div class="sub" style="padding:15px">暂时无法扫描，请手动添加网络。</div>';}}
 function connectScannedNetwork(button,password){return connectNetwork(button.dataset.ssid,password,button,button.dataset.radio||'',button.dataset.auth||'',button.dataset.bssid||'');}
 async function connectNetwork(ssid,password,button,radio='',auth='',bssid=''){
   if(!ssid){alert('请输入 Wi-Fi 名称');return;}
-  button.disabled=true;$('out').textContent='正在向 H3C 下发无线中继配置…';
+  button.disabled=true;$('out').textContent='正在向 RK3506B 下发 Wi-Fi 配置…';
   const b={ssid,password,radio,auth,bssid};
   try{const r=await fetchTO('/network/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)},8000),d=await r.json();
-    $('out').textContent=d.ok?'H3C 正在连接 '+ssid+'，请等待约 30–90 秒。上方会显示连接结果。':(d.message==='serial_device_offline'?'Atlas 当前离线，无法修改 H3C。':'发送失败，请重试');}
+    $('out').textContent=d.ok?'网络正在切换 '+ssid+'，请等待约 30–90 秒。上方会显示连接结果。':(d.message==='serial_device_offline'?'RK3506B 当前离线，无法修改网络。':'发送失败，请重试');}
   catch(e){$('out').textContent='保存失败，请重试';}
   button.disabled=false;
 }
 // ---- 启动 ----
 async function boot(){
-  updateStages();
-  farmUpdateStages();
-  ['fieldCapacity','soilEc','appliedN','appliedP','appliedK'].forEach(id=>$(id).addEventListener('input',syncModelInputs));
-  syncModelInputs();
+  try{
+    const saved=JSON.parse(localStorage.getItem('zhirun-v2-concentrations')||'null');
+    if(Array.isArray(saved)&&saved.length===3&&saved.every(value=>Number.isFinite(Number(value)))){
+      ['nConcentration','pConcentration','kConcentration'].forEach((id,index)=>$(id).value=saved[index]);
+      ['farmNConcentration','farmPConcentration','farmKConcentration'].forEach((id,index)=>$(id).value=saved[index]);
+    }
+  }catch(e){}
+  syncModelSensor();
   await loadCfg();           // 失败也不抛, 内部已 catch
   await loadSchema();        // 同上; 即使空 schema 也先把空网格建好, 不留白屏
   await loadRecording();

@@ -1,14 +1,13 @@
 # Production services
 
-The server units in this directory run the public dashboard and fertigation
-inference service on Ubuntu. Atlas-only units retain their hardware-specific
-network and collector behavior. Runtime credentials are not stored here.
+The runtime is split between the RK3506B edge controller, the ESP32 pump
+controller, and the public server.
 
-## Ubuntu public server
+## Public server
 
-The public server uses `/opt/zhirun` and the dedicated `zhirun` service user.
-Install the source there, create the user, install Python dependencies from
-`灌溉模型/灌溉模型/requirements.txt`, then install and enable:
+The Ubuntu server runs the dashboard/API and fertigation inference service.
+Install the source under `/opt/zhirun`, create the `zhirun` service user, then
+install and enable the units:
 
 ```bash
 install -m 0644 deploy/zhirun-server.service deploy/zhirun-infer.service /etc/systemd/system/
@@ -16,37 +15,28 @@ systemctl daemon-reload
 systemctl enable --now zhirun-server.service zhirun-infer.service
 ```
 
-To expose the dashboard on the standard HTTP port, install
-`deploy/nginx-zhirun.conf` as an Nginx site and reload Nginx.
+Install `deploy/nginx-zhirun.conf` as an Nginx site so the board can use the
+standard HTTP port. Set `ZHIRUN_PUSH_TOKEN` in `/etc/zhirun/server.env` when
+upload authentication is required.
 
-Set `ZHIRUN_PUSH_TOKEN` in `/etc/zhirun/server.env` if Atlas upload
-authentication is enabled.
-For the repository deployment helpers, copy `deploy/server.env.example` to the
-repository root as `.env` and replace only the local SSH password and token.
+## RK3506B controller
 
-## Atlas production services
+The board uses BusyBox init. Install the collector, configuration, and init
+script as follows:
 
-Atlas runtime credentials remain in
-`/home/HwHiAiUser/.config/zhirun-atlas.env` and are not stored here.
-
-## Install
-
-Run these commands as root on the Atlas after deploying the application source
-(do not install the Ubuntu-only public server units there):
-
-```bash
-install -m 0755 deploy/zhirun-boot-prepare /usr/local/sbin/
-install -m 0755 deploy/zhirun-healthcheck /usr/local/sbin/
-install -m 0755 deploy/zhirun-esp-safe-init /usr/local/sbin/
-install -m 0644 deploy/zhirun-boot-prepare.service deploy/zhirun-atlas-collector.service deploy/zhirun-healthcheck.service deploy/zhirun-healthcheck.timer /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable zhirun-boot-prepare.service zhirun-server.service
-systemctl enable zhirun-atlas-collector.service zhirun-healthcheck.timer
-systemctl restart zhirun-server.service zhirun-atlas-collector.service
-systemctl start zhirun-healthcheck.timer
+```sh
+mkdir -p /oem/usr/bin /oem/usr/lib/modules
+install -m 0644 ch341.ko /oem/usr/lib/modules/ch341.ko
+install -m 0755 edge/rk3506_collector.py /oem/usr/bin/rk3506_collector.py
+install -m 0600 .env.rk3506.example /etc/zhirun-rk3506.env
+install -m 0755 deploy/zhirun-ch341.init /etc/init.d/S03zhirun-ch341
+install -m 0755 deploy/zhirun-rk3506-collector.init /etc/init.d/S98zhirun-collector
+/etc/init.d/S03zhirun-ch341 start
+/etc/init.d/S98zhirun-collector start
 ```
 
-The collector starts only after network preparation and an ESP32 safe-mode
-initialization attempt. The health timer checks the local dashboard, collector
-log freshness, and the H3C uplink once per minute, restarting or renewing the
-affected component when necessary.
+Adjust the device token, serial ports, Modbus addresses, and server URL in
+`/etc/zhirun-rk3506.env` before starting the service. The complete model stays
+on the public server; the controller only performs acquisition and transport.
+The supplied CH341 module is kernel-release specific; verify its `vermagic`
+matches the running kernel before installation.

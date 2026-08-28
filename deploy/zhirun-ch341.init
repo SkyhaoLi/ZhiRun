@@ -1,0 +1,20 @@
+#!/bin/sh
+
+MODULE=/oem/usr/lib/modules/ch341.ko
+
+case "$1" in
+  start)
+    grep -q '^ch341 ' /proc/modules 2>/dev/null || insmod "$MODULE"
+    ;;
+  stop)
+    rmmod ch341 2>/dev/null || true
+    ;;
+  restart)
+    "$0" stop
+    "$0" start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac

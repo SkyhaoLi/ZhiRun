@@ -83,7 +83,13 @@ def main() -> None:
         "k_remaining": max(0, crop_cfg["season_k2o_kg_mu"] * s["k_share"] - args.k_applied_stage),
         "n_level_factor": factor[args.soil_n_level], "p_level_factor": factor[args.soil_p_level],
         "k_level_factor": factor[args.soil_k_level], "fertilizer_interval_ready": int(args.days_since_fertigation >= 7),
-        "ec_block": int(args.soil_ec >= 2.0),
+        "ec_block": int(args.soil_ec >= 2.0), "latitude": float(soil["latitude"]),
+        "longitude": float(soil["longitude"]), "co2_ppm": 420.0,
+        "soil_temperature_c": float(w.T2M), "soil_n_mg_kg": float(soil["nitrogen_g_kg"] * 1000),
+        "soil_p_mg_kg": float(soil.get("phosphorus_mg_kg", 20.0)),
+        "soil_k_mg_kg": float(soil.get("potassium_mg_kg", 160.0)),
+        "light_lux": float(max(0.0, w.ALLSKY_SFC_SW_DWN) * 120.0),
+        "rain_24h_mm": float(w.PRECTOTCORR),
     }
     pred = np.maximum(0, PACKAGE["pipeline"].predict(pd.DataFrame([row])[CATEGORICAL + NUMERIC])[0])
     # 部署安全护栏：接近0的树平均值归零，并应用绝对事件上限。

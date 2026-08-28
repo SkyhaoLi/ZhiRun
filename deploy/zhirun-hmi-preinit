@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# The vendor LVGL demo starts later in the normal init sequence. The project
+# HMI is started by S99zhirun-hmi after that process has been stopped.
+exit 0

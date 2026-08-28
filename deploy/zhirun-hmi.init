@@ -1,0 +1,21 @@
+#!/bin/sh
+
+APP=/oem/usr/bin/zhirun_hmi_demo
+LOG=/tmp/zhirun_hmi.log
+
+start() {
+    killall -9 lv_demo rk_demo lv_rk3506_hmi_test zhirun_hmi_demo 2>/dev/null || true
+    sleep 1
+    nohup env LD_LIBRARY_PATH=/oem/usr/lib "$APP" >"$LOG" 2>&1 &
+}
+
+stop() {
+    killall -9 zhirun_hmi_demo 2>/dev/null || true
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    restart|reload) stop; start ;;
+    *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac

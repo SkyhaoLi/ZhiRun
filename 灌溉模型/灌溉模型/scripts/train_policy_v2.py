@@ -37,7 +37,8 @@ NUMERIC = [
     "days_since_fertigation", "n_applied_stage", "p_applied_stage", "k_applied_stage",
     "root_depth", "root_moisture", "relative_fc", "trigger_fc", "target_fc", "kc",
     "n_remaining", "p_remaining", "k_remaining", "n_level_factor", "p_level_factor", "k_level_factor",
-    "fertilizer_interval_ready", "ec_block",
+    "fertilizer_interval_ready", "ec_block", "latitude", "longitude", "co2_ppm",
+    "soil_temperature_c", "soil_n_mg_kg", "soil_p_mg_kg", "soil_k_mg_kg", "light_lux", "rain_24h_mm",
 ]
 TARGETS = ["water_m3_mu", "n_kg_mu", "p2o5_kg_mu", "k2o_kg_mu"]
 
@@ -146,7 +147,7 @@ def build_samples(seed: int = 42) -> pd.DataFrame:
                         "field_capacity": fc, "moisture20": moisture[0], "moisture40": moisture[1], "moisture60": moisture[2],
                         "soil_ec": soil_ec, "soil_ph": profile["ph"], "soc_g_kg": profile["soc_g_kg"],
                         "soil_n_g_kg": profile["nitrogen_g_kg"], "sand_pct": profile["sand_pct"], "clay_pct": profile["clay_pct"],
-                        "bulk_density": profile["bulk_density"], "soil_n_level": n_level, "soil_p_level": p_level,
+                    "bulk_density": profile["bulk_density"], "soil_n_level": n_level, "soil_p_level": p_level,
                         "soil_k_level": k_level, "days_since_fertigation": days, "n_applied_stage": n_applied,
                         "p_applied_stage": p_applied, "k_applied_stage": k_applied,
                         "root_depth": stage_cfg["root_depth_m"], "root_moisture": root_moisture,
@@ -157,6 +158,14 @@ def build_samples(seed: int = 42) -> pd.DataFrame:
                         "k_remaining": d["stage_k2o_remaining_before_this_job_kg_mu"],
                         "n_level_factor": factors[n_level], "p_level_factor": factors[p_level], "k_level_factor": factors[k_level],
                         "fertilizer_interval_ready": int(days >= 7), "ec_block": int(soil_ec >= 2.0),
+                        "latitude": profile["latitude"], "longitude": profile["longitude"],
+                        "co2_ppm": float(np.clip(420 + 12 * math.sin(doy / 365 * 2 * math.pi) + rng.normal(0, 8), 350, 800)),
+                        "soil_temperature_c": float(np.clip(w.T2M + 2.0 + rng.normal(0, 1.0), -5, 45)),
+                        "soil_n_mg_kg": profile["nitrogen_g_kg"] * 1000,
+                        "soil_p_mg_kg": profile.get("phosphorus_mg_kg", 20.0),
+                        "soil_k_mg_kg": profile.get("potassium_mg_kg", 160.0),
+                        "light_lux": max(0.0, float(w.ALLSKY_SFC_SW_DWN) * 120.0),
+                        "rain_24h_mm": float(w.PRECTOTCORR),
                         "water_m3_mu": d["irrigation_m3_mu"], "n_kg_mu": d["nitrogen_kg_mu"],
                         "p2o5_kg_mu": d["p2o5_kg_mu"], "k2o_kg_mu": d["k2o_kg_mu"],
                     })
