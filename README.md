@@ -1,5 +1,8 @@
 # ZhiRun RK3506B Irrigation System
 
+Current hardware baseline: RK3506B + USB-RS485 + ESP32-S3. The public server,
+dashboard, and fertigation V2 inference service all use this baseline.
+
 农田环境监测、水肥决策与定量投料项目。RK3506B 采集 RS485 传感器并通过 USB 串口控制 ESP32-S3，ESP32-S3 根据三只独立流量计闭环控制 N/P/K 泵，再联锁启动混合罐出口泵。
 
 ## Architecture
