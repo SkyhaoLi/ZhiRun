@@ -166,6 +166,7 @@
   #p-model .model-result{display:none;grid-column:1/-1}#p-model .model-result.has-result{display:block}.decision-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}.decision-head h3{margin:0}.decision-badge{padding:5px 9px;border-radius:5px;background:rgba(83,199,167,.12);color:var(--acc);font-size:12px}.decision-badge.blocked{background:rgba(224,90,90,.12);color:#e79aa8}
   #p-model .decision-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.decision-metric{padding:11px;border:1px solid var(--line2);border-radius:6px;background:#101927}.decision-metric span{display:block;color:var(--muted);font-size:11px}.decision-metric b{display:block;margin-top:5px;font-size:20px;color:#fff}
   #p-model .model-result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.result-section{min-width:0}.result-section h4{margin:0 0 7px;font-size:13px}.model-list{border-top:1px solid var(--line2)}.model-list div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2);font-size:12px}.model-list span{color:var(--muted)}.model-list b{text-align:right}.model-alerts{margin-top:12px;padding:10px;border-left:3px solid #d3a84d;background:rgba(211,168,77,.08);color:#e8d39e;font-size:12px;line-height:1.55}
+  #p-model .model-runbar{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line2)}#p-model .model-runbar .btn{width:auto;margin:0;padding:9px 14px}#p-model .model-runbar .stop{border-color:rgba(224,90,90,.45);color:#f0a4a4}#p-model .model-run-status{min-width:0;margin-left:auto;color:var(--muted);font-size:12px;text-align:right}
   @media(max-width:900px){#p-model .model-shell{grid-template-columns:1fr}.model-service,#p-model .model-result{grid-column:auto}#p-model .auto-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#p-model .model-result-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:560px){#p-model .model-service{align-items:flex-start;flex-direction:column}#p-model .auto-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#p-model .decision-metrics,#p-model .model-result-grid{grid-template-columns:1fr 1fr}.decision-head{flex-direction:column}}
   .thr .fi label{margin-top:0}
@@ -740,6 +741,7 @@ function syncValveRange(source){
 const VALVE_MESSAGES={
   command_queued:'指令已发送，等待设备确认',serial_device_offline:'设备离线，无法发送指令',
   four_relay_firmware_required:'ESP32 尚未升级四路独立流量固件，禁止启动投料',
+  empty_fertigation_job:'当前工作单没有可执行目标',invalid_fertigation_job:'工作单参数无效',
   three_pump_firmware_required:'ESP32 三路测试固件尚未就绪',invalid_pump_test:'泵测试参数无效',
   manual_mode_required:'请先切换到手动模式',mode_updated:'控制模式已更新',manual_updated:'阀门状态已更新',
   bad_mode:'控制模式无效',bad_manual_action:'阀门操作无效',invalid_config:'阈值设置无效',
@@ -908,6 +910,11 @@ let lastModelResult=null;
 const PHASE_NAMES={IDLE:'待机',PREFLUSH:'主水预冲',DOSE_A:'N 母液投料',DOSE_B:'P₂O₅ 母液投料',DOSE_C:'K₂O 母液投料',DOSE_PARALLEL:'N/P/K 母液投料',INTER_TANK_FLUSH:'肥路隔离冲洗',MIXING:'混合',OUTLET_TRANSFER:'混合罐出料',IRRIGATE_AND_POSTFLUSH:'灌溉与后冲',COMPLETE:'完成'};
 function phaseTarget(phase){if(phase.target_solution_l!=null)return phase.target_solution_l+' L';if(phase.main_water_target_l!=null)return phase.main_water_target_l+' L';if(phase.targets_l)return Object.values(phase.targets_l).map(value=>Number(value).toFixed(3)+' L').join(' / ');if(phase.outlet_run_s!=null)return phase.outlet_run_s+' s';if(phase.mix_duration_s!=null)return phase.mix_duration_s+' s';if(phase.main_water_close_at_total_l!=null)return '累计 '+phase.main_water_close_at_total_l+' L';return '全部关闭';}
 function activeOutputs(phase){if(Array.isArray(phase.open_outputs))return phase.open_outputs.join(' + ')||'全部关闭';return Object.entries(phase.outputs||{}).filter(item=>item[1]).map(item=>item[0]).join(' + ')||'全部关闭';}
+function modelJobParams(payload=lastModelResult){
+  const result=payload?.result||{},job=result.job||{},pumps=result.hardware?.pumps||{},targets=job.targets_l||{};
+  const number=value=>{const parsed=Number(value);return Number.isFinite(parsed)&&parsed>0?parsed:0;};
+  return {n_target_l:number(targets.N??pumps.N_PUMP?.target_solution_l),p_target_l:number(targets.P??pumps.P_PUMP?.target_solution_l),k_target_l:number(targets.K??pumps.K_PUMP?.target_solution_l),outlet_run_s:number(job.outlet_run_s??result.hardware?.outlet_pump?.duration_s)};
+}
 function renderModelResult(payload){
   const t=payload.decision||{},result=payload.result||{},job=result.job||{},auto=result.automatic_inputs||{},forecast=auto.forecast_summary||{},hardware=result.hardware||{},pumps=hardware.pumps||{};
   const nutrients=[['灌水量',t.irrigation_m3_mu,'m³/亩'],['氮 N',t.nitrogen_kg_mu,'kg/亩'],['磷 P₂O₅',t.p2o5_kg_mu,'kg/亩'],['钾 K₂O',t.k2o_kg_mu,'kg/亩']];
@@ -915,7 +922,8 @@ function renderModelResult(payload){
   const phaseRows=(job.phases||[]).map(phase=>'<div><span>'+PHASE_NAMES[phase.state]+'</span><b>'+activeOutputs(phase)+' · '+phaseTarget(phase)+'</b></div>').join('');
   const forecastRows='<div><span>生育阶段</span><b>'+String(t.stage||'--')+'</b></div><div><span>根区水分</span><b>'+modelNumber(t.root_zone_moisture_pct,1)+'%</b></div><div><span>未来 2 日雨量</span><b>'+modelNumber(forecast.rain_next_2d_mm,1)+' mm</b></div><div><span>未来日均 ET₀</span><b>'+modelNumber(forecast.eto_daily_mm,1)+' mm</b></div>';
   const alerts=(t.alerts||[]).length?(t.alerts||[]).join('；'):'安全门通过，无附加告警';
-  $('result').innerHTML='<div class="decision-head"><div><h3>'+String(t.crop||'玉米')+' · '+String(t.stage||'自动识别')+'</h3><div class="sub">动态触发 '+modelNumber(Number(t.dynamic_trigger_relative_fc)*100,1)+'% FC · 相对田间持水量 '+modelNumber(Number(t.relative_field_capacity)*100,1)+'%</div></div><span class="decision-badge '+(t.irrigate?'':'blocked')+'">'+(t.irrigate?(t.fertigate?'建议水肥':'仅建议灌水'):'保持关闭')+'</span></div><div class="decision-metrics">'+nutrients.map(item=>'<div class="decision-metric"><span>'+item[0]+'</span><b>'+modelNumber(item[1],2)+'</b><small>'+item[2]+'</small></div>').join('')+'</div><div class="model-result-grid"><section class="result-section"><h4>母液目标体积</h4><div class="model-list">'+pumpRows+'</div></section><section class="result-section"><h4>自动环境与预报</h4><div class="model-list">'+forecastRows+'</div></section><section class="result-section"><h4>硬件阶段工作单</h4><div class="model-list">'+phaseRows+'</div></section></div><div class="model-alerts">'+alerts+'。当前工作单仅供审核，确认后通过执行接口下发，避免模型直接启动水泵。</div>';
+  const executable=Object.values(modelJobParams(payload)).some(value=>value>0);
+  $('result').innerHTML='<div class="decision-head"><div><h3>'+String(t.crop||'玉米')+' · '+String(t.stage||'自动识别')+'</h3><div class="sub">动态触发 '+modelNumber(Number(t.dynamic_trigger_relative_fc)*100,1)+'% FC · 相对田间持水量 '+modelNumber(Number(t.relative_field_capacity)*100,1)+'%</div></div><span class="decision-badge '+(t.irrigate?'':'blocked')+'">'+(t.irrigate?(t.fertigate?'建议水肥':'仅建议灌水'):'保持关闭')+'</span></div><div class="decision-metrics">'+nutrients.map(item=>'<div class="decision-metric"><span>'+item[0]+'</span><b>'+modelNumber(item[1],2)+'</b><small>'+item[2]+'</small></div>').join('')+'</div><div class="model-result-grid"><section class="result-section"><h4>母液目标体积</h4><div class="model-list">'+pumpRows+'</div></section><section class="result-section"><h4>自动环境与预报</h4><div class="model-list">'+forecastRows+'</div></section><section class="result-section"><h4>硬件阶段工作单</h4><div class="model-list">'+phaseRows+'</div></section></div><div class="model-alerts">'+alerts+'。当前工作单仅供审核，确认后通过执行接口下发，避免模型直接启动水泵。</div><div class="model-runbar"><button class="btn pri" id="modelRunBtn" onclick="executeModelJob()" '+(executable?'':'disabled')+'>'+(executable?'执行工作单':'当前无可执行任务')+'</button><button class="btn stop" onclick="stopFertigation()">全部停止</button><span class="model-run-status" id="modelRunStatus">'+(executable?'等待人工确认':'安全门已阻止执行')+'</span></div>';
   $('modelResult').classList.add('has-result');
 }
 async function predict(){
@@ -934,7 +942,19 @@ async function predict(){
   }catch(e){$('mOut').textContent='计算失败：'+e.message;return null;}
   finally{$('predictBtn').disabled=false;}
 }
-async function stopFertigation(){try{const r=await fetchTO('/fertigation/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),d=await r.json();const text=d.ok?'全部停止指令已发送':valveMessage(d.message,'停止指令失败');$('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;setTimeout(loadValve,700);return !!d.ok;}catch(e){$('vOut').textContent='停止指令发送失败';return false;}}
+async function executeModelJob(){
+  const params=modelJobParams();
+  if(!Object.values(params).some(value=>value>0)){const el=$('modelRunStatus');if(el)el.textContent='当前工作单没有可执行目标';return false;}
+  const summary='N '+modelNumber(params.n_target_l,3)+' L，P '+modelNumber(params.p_target_l,3)+' L，K '+modelNumber(params.k_target_l,3)+' L，出口泵 '+Math.round(params.outlet_run_s)+' 秒';
+  if(!confirm('确认下发水肥工作单？\n'+summary))return false;
+  const button=$('modelRunBtn'),status=$('modelRunStatus');button.disabled=true;status.textContent='正在下发工作单…';
+  try{
+    const response=await fetchTO(inferBase()+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)},8000),data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(valveMessage(data.message,'工作单下发失败'));
+    status.textContent='工作单已下发，设备开始执行';$('vOut').textContent=status.textContent;if($('farmValveOut'))$('farmValveOut').textContent=status.textContent;setTimeout(loadValve,700);return true;
+  }catch(error){status.textContent=error.message||'工作单下发失败';button.disabled=false;return false;}
+}
+async function stopFertigation(){try{const r=await fetchTO('/fertigation/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'},8000),d=await r.json();const text=d.ok?'全部停止指令已发送':valveMessage(d.message,'停止指令失败');$('vOut').textContent=text;if($('farmValveOut'))$('farmValveOut').textContent=text;if($('modelRunStatus'))$('modelRunStatus').textContent=text;setTimeout(loadValve,700);return !!d.ok;}catch(e){const text='停止指令发送失败';$('vOut').textContent=text;if($('modelRunStatus'))$('modelRunStatus').textContent=text;return false;}}
 async function farmPredict(){
   $('farmPredictBtn').disabled=true;$('farmAdviceResult').innerHTML='<div class="farm-advice-note">服务器正在运行 V2 模型…</div>';
   const d=await predict();if(!d){$('farmAdviceResult').innerHTML='<div class="farm-advice-note">'+$('mOut').textContent+'</div>';$('farmPredictBtn').disabled=false;return;}

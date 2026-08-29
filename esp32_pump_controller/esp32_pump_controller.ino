@@ -34,6 +34,8 @@ bool outletPumpOn = false;
 bool fertigationActive = false;
 float targetLiters[PUMP_COUNT] = {0, 0, 0};
 uint32_t targetStartPulses[PUMP_COUNT] = {0, 0, 0};
+unsigned long outletStartedAt = 0;
+unsigned long outletTargetSeconds = 0;
 String fertigationState = "idle";
 String controlMode = "manual";
 String lastError = "boot_safe_off";
@@ -146,9 +148,25 @@ void stopAll(const char *reason) {
   for (int index = 0; index < PUMP_COUNT; ++index) setPump(index, false, reason);
   digitalWrite(OUTLET_PUMP_PIN, LOW);
   outletPumpOn = false;
+  outletStartedAt = 0;
+  outletTargetSeconds = 0;
   fertigationActive = false;
   fertigationState = "idle";
   for (int index = 0; index < PUMP_COUNT; ++index) targetLiters[index] = 0;
+}
+
+void startOutletPump() {
+  if (outletTargetSeconds == 0) {
+    fertigationActive = false;
+    fertigationState = "complete";
+    return;
+  }
+  digitalWrite(OUTLET_PUMP_PIN, HIGH);
+  outletPumpOn = true;
+  outletStartedAt = millis();
+  fertigationActive = true;
+  fertigationState = "outlet";
+  lastError = "";
 }
 
 unsigned long runSeconds(int index) {
@@ -168,6 +186,18 @@ float flowRateLMin(int index, uint32_t pulses[ PUMP_COUNT ], unsigned long now) 
 
 void updateFertigation() {
   if (!fertigationActive) return;
+  if (fertigationState == "outlet") {
+    if ((millis() - outletStartedAt) / 1000UL >= outletTargetSeconds) {
+      digitalWrite(OUTLET_PUMP_PIN, LOW);
+      outletPumpOn = false;
+      outletStartedAt = 0;
+      fertigationActive = false;
+      fertigationState = "complete";
+      lastError = "target_reached";
+      reportSerialState();
+    }
+    return;
+  }
   uint32_t pulses[PUMP_COUNT];
   flowPulseSnapshot(pulses);
   bool anyTarget = false;
@@ -182,8 +212,7 @@ void updateFertigation() {
   }
   bool anyOn = anyPumpOn();
   if (!anyTarget || !anyOn) {
-    fertigationActive = false;
-    fertigationState = "complete";
+    startOutletPump();
   } else {
     fertigationState = "dosing";
   }
@@ -203,7 +232,7 @@ void reportSerialState() {
   const float nFlow = flowRateLMin(0, pulses, now);
   const float pFlow = flowRateLMin(1, pulses, now);
   const float kFlow = flowRateLMin(2, pulses, now);
-  Serial.println(String("STATE {\"controllerSchema\":\"four_relay_independent_flow_v1\",\"valveOn\":") +
+  Serial.println(String("STATE {\"controllerSchema\":\"four_relay_independent_flow_v1\",\"firmwareVersion\":\"four_relay_job_v2\",\"valveOn\":") +
       (anyPumpOn() ? "true" : "false") +
       ",\"manualOpen\":" + (anyPumpOn() ? "true" : "false") +
       ",\"nPumpOn\":" + (pumpOn[0] ? "true" : "false") +
@@ -227,6 +256,8 @@ void reportSerialState() {
       ",\"kRunSeconds\":" + String(runSeconds(2)) +
       ",\"maxRunS\":" + String(MAX_TEST_RUN_MS / 1000UL) +
       ",\"outletPumpOn\":" + (outletPumpOn ? "true" : "false") +
+      ",\"outletRunSeconds\":" + String(outletPumpOn ? (now - outletStartedAt) / 1000UL : 0) +
+      ",\"outletTargetSeconds\":" + String(outletTargetSeconds) +
       ",\"fertigationState\":\"" + fertigationState + "\"" +
       ",\"jobActive\":" + (fertigationActive ? "true" : "false") +
       ",\"nFlowPulses\":" + String(pulses[0]) +
@@ -275,12 +306,17 @@ void handleCommand(const String &json) {
     targetLiters[0] = max(0.0F, jsonNumber(command, "n_target_l", 0));
     targetLiters[1] = max(0.0F, jsonNumber(command, "p_target_l", 0));
     targetLiters[2] = max(0.0F, jsonNumber(command, "k_target_l", 0));
+    outletTargetSeconds = static_cast<unsigned long>(max(0.0F, jsonNumber(command, "outlet_run_s", 0)));
+    outletStartedAt = 0;
+    digitalWrite(OUTLET_PUMP_PIN, LOW);
+    outletPumpOn = false;
     for (int index = 0; index < PUMP_COUNT; ++index) {
       targetStartPulses[index] = pulses[index];
       setPump(index, targetLiters[index] > 0, "");
     }
     fertigationActive = anyPumpOn();
-    fertigationState = fertigationActive ? "dosing" : "complete";
+    if (fertigationActive) fertigationState = "dosing";
+    else startOutletPump();
   } else if (action == "manual") {
     const String requested = jsonString(command, "manual_action");
     if (requested == "close" || requested == "off") {
