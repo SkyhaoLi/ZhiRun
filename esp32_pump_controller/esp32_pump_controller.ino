@@ -5,18 +5,36 @@
 #define Serial Serial0
 
 // Relay inputs are high-level triggered. N/P/K map to IN1/IN2/IN3.
+// Flow meters are pulse-output sensors. Their signal wires must be 3.3 V
+// safe (use an open-collector pull-up or level shifter for 5 V outputs).
 constexpr int PUMP_COUNT = 3;
 constexpr int PUMP_PINS[PUMP_COUNT] = {4, 5, 6};
+constexpr int FLOW_PINS[PUMP_COUNT] = {15, 16, 17};
 constexpr const char *PUMP_NAMES[PUMP_COUNT] = {"n", "p", "k"};
+constexpr const char *FLOW_NAMES[PUMP_COUNT] = {"N_FLOW", "P_FLOW", "K_FLOW"};
 constexpr int RAIN_PIN = 18;
+constexpr int OUTLET_PUMP_PIN = 7;
 constexpr float RAIN_MM_PER_TIP = 0.3F;
 constexpr uint32_t RAIN_DEBOUNCE_US = 50000;
+constexpr uint32_t FLOW_DEBOUNCE_US = 2000;
+constexpr float DEFAULT_PULSES_PER_LITER = 450.0F;
 constexpr unsigned long MAX_TEST_RUN_MS = 180000;
 
 volatile uint32_t rainTips = 0;
 volatile uint32_t lastRainPulseUs = 0;
+volatile uint32_t flowPulses[PUMP_COUNT] = {0, 0, 0};
+volatile uint32_t lastFlowPulseUs[PUMP_COUNT] = {0, 0, 0};
 bool pumpOn[PUMP_COUNT] = {false, false, false};
 unsigned long pumpStartedAt[PUMP_COUNT] = {0, 0, 0};
+float pulsesPerLiter[PUMP_COUNT] = {DEFAULT_PULSES_PER_LITER, DEFAULT_PULSES_PER_LITER, DEFAULT_PULSES_PER_LITER};
+uint32_t reportFlowPulses[PUMP_COUNT] = {0, 0, 0};
+unsigned long reportFlowAt = 0;
+unsigned long lastPeriodicReportAt = 0;
+bool outletPumpOn = false;
+bool fertigationActive = false;
+float targetLiters[PUMP_COUNT] = {0, 0, 0};
+uint32_t targetStartPulses[PUMP_COUNT] = {0, 0, 0};
+String fertigationState = "idle";
 String controlMode = "manual";
 String lastError = "boot_safe_off";
 String lastCommandId;
@@ -31,11 +49,41 @@ void IRAM_ATTR onRainTip() {
   }
 }
 
+void IRAM_ATTR onFlowN() {
+  const uint32_t now = micros();
+  if (now - lastFlowPulseUs[0] >= FLOW_DEBOUNCE_US) {
+    ++flowPulses[0];
+    lastFlowPulseUs[0] = now;
+  }
+}
+
+void IRAM_ATTR onFlowP() {
+  const uint32_t now = micros();
+  if (now - lastFlowPulseUs[1] >= FLOW_DEBOUNCE_US) {
+    ++flowPulses[1];
+    lastFlowPulseUs[1] = now;
+  }
+}
+
+void IRAM_ATTR onFlowK() {
+  const uint32_t now = micros();
+  if (now - lastFlowPulseUs[2] >= FLOW_DEBOUNCE_US) {
+    ++flowPulses[2];
+    lastFlowPulseUs[2] = now;
+  }
+}
+
 uint32_t rainTipSnapshot() {
   noInterrupts();
   const uint32_t value = rainTips;
   interrupts();
   return value;
+}
+
+void flowPulseSnapshot(uint32_t *output) {
+  noInterrupts();
+  for (int index = 0; index < PUMP_COUNT; ++index) output[index] = flowPulses[index];
+  interrupts();
 }
 
 String jsonEscape(const String &value) {
@@ -64,6 +112,17 @@ int pumpIndex(const String &name) {
   return -1;
 }
 
+float jsonNumber(const String &json, const char *key, float fallback) {
+  const String marker = String("\"") + key + "\":";
+  const int markerAt = json.indexOf(marker);
+  if (markerAt < 0) return fallback;
+  int start = markerAt + marker.length();
+  while (start < static_cast<int>(json.length()) && (json[start] == ' ' || json[start] == '\t')) ++start;
+  int end = start;
+  while (end < static_cast<int>(json.length()) && String("0123456789+-.eE").indexOf(json[end]) >= 0) ++end;
+  return end > start ? json.substring(start, end).toFloat() : fallback;
+}
+
 bool anyPumpOn() {
   for (int index = 0; index < PUMP_COUNT; ++index) {
     if (pumpOn[index]) return true;
@@ -85,10 +144,49 @@ void setPump(int index, bool enabled, const char *reason) {
 
 void stopAll(const char *reason) {
   for (int index = 0; index < PUMP_COUNT; ++index) setPump(index, false, reason);
+  digitalWrite(OUTLET_PUMP_PIN, LOW);
+  outletPumpOn = false;
+  fertigationActive = false;
+  fertigationState = "idle";
+  for (int index = 0; index < PUMP_COUNT; ++index) targetLiters[index] = 0;
 }
 
 unsigned long runSeconds(int index) {
   return pumpOn[index] ? (millis() - pumpStartedAt[index]) / 1000UL : 0;
+}
+
+float deliveredLiters(int index, uint32_t pulses[ PUMP_COUNT ]) {
+  if (index < 0 || index >= PUMP_COUNT || pulsesPerLiter[index] <= 0) return 0.0F;
+  return pulses[index] / pulsesPerLiter[index];
+}
+
+float flowRateLMin(int index, uint32_t pulses[ PUMP_COUNT ], unsigned long now) {
+  if (index < 0 || index >= PUMP_COUNT || reportFlowAt == 0 || now <= reportFlowAt || pulsesPerLiter[index] <= 0) return 0.0F;
+  const float elapsedMinutes = (now - reportFlowAt) / 60000.0F;
+  return (pulses[index] - reportFlowPulses[index]) / pulsesPerLiter[index] / elapsedMinutes;
+}
+
+void updateFertigation() {
+  if (!fertigationActive) return;
+  uint32_t pulses[PUMP_COUNT];
+  flowPulseSnapshot(pulses);
+  bool anyTarget = false;
+  for (int index = 0; index < PUMP_COUNT; ++index) {
+    if (targetLiters[index] <= 0) {
+      setPump(index, false, "");
+      continue;
+    }
+    anyTarget = true;
+    const float delivered = (pulses[index] - targetStartPulses[index]) / pulsesPerLiter[index];
+    if (delivered >= targetLiters[index]) setPump(index, false, "target_reached");
+  }
+  bool anyOn = anyPumpOn();
+  if (!anyTarget || !anyOn) {
+    fertigationActive = false;
+    fertigationState = "complete";
+  } else {
+    fertigationState = "dosing";
+  }
 }
 
 void saveMode() {
@@ -99,7 +197,13 @@ void saveMode() {
 
 void reportSerialState() {
   const uint32_t tips = rainTipSnapshot();
-  Serial.println(String("STATE {\"controllerSchema\":\"three_pump_test_rain_v1\",\"valveOn\":") +
+  uint32_t pulses[PUMP_COUNT];
+  flowPulseSnapshot(pulses);
+  const unsigned long now = millis();
+  const float nFlow = flowRateLMin(0, pulses, now);
+  const float pFlow = flowRateLMin(1, pulses, now);
+  const float kFlow = flowRateLMin(2, pulses, now);
+  Serial.println(String("STATE {\"controllerSchema\":\"four_relay_independent_flow_v1\",\"valveOn\":") +
       (anyPumpOn() ? "true" : "false") +
       ",\"manualOpen\":" + (anyPumpOn() ? "true" : "false") +
       ",\"nPumpOn\":" + (pumpOn[0] ? "true" : "false") +
@@ -122,10 +226,28 @@ void reportSerialState() {
       ",\"pRunSeconds\":" + String(runSeconds(1)) +
       ",\"kRunSeconds\":" + String(runSeconds(2)) +
       ",\"maxRunS\":" + String(MAX_TEST_RUN_MS / 1000UL) +
+      ",\"outletPumpOn\":" + (outletPumpOn ? "true" : "false") +
+      ",\"fertigationState\":\"" + fertigationState + "\"" +
+      ",\"jobActive\":" + (fertigationActive ? "true" : "false") +
+      ",\"nFlowPulses\":" + String(pulses[0]) +
+      ",\"pFlowPulses\":" + String(pulses[1]) +
+      ",\"kFlowPulses\":" + String(pulses[2]) +
+      ",\"nDeliveredL\":" + String(deliveredLiters(0, pulses), 3) +
+      ",\"pDeliveredL\":" + String(deliveredLiters(1, pulses), 3) +
+      ",\"kDeliveredL\":" + String(deliveredLiters(2, pulses), 3) +
+      ",\"nFlowLMin\":" + String(nFlow, 3) +
+      ",\"pFlowLMin\":" + String(pFlow, 3) +
+      ",\"kFlowLMin\":" + String(kFlow, 3) +
+      ",\"nPulsesPerL\":" + String(pulsesPerLiter[0], 3) +
+      ",\"pPulsesPerL\":" + String(pulsesPerLiter[1], 3) +
+      ",\"kPulsesPerL\":" + String(pulsesPerLiter[2], 3) +
+      ",\"flowMeters\":{\"N_FLOW\":true,\"P_FLOW\":true,\"K_FLOW\":true}" +
       ",\"rainTips\":" + String(tips) +
       ",\"rainMm\":" + String(tips * RAIN_MM_PER_TIP, 1) +
       ",\"error\":\"" + jsonEscape(lastError) +
       "\",\"lastCommandId\":\"" + jsonEscape(lastCommandId) + "\"}");
+  for (int index = 0; index < PUMP_COUNT; ++index) reportFlowPulses[index] = pulses[index];
+  reportFlowAt = now;
 }
 
 void handleCommand(const String &json) {
@@ -147,6 +269,18 @@ void handleCommand(const String &json) {
     } else {
       lastError = "bad_manual_action";
     }
+  } else if (action == "fertigation_start") {
+    uint32_t pulses[PUMP_COUNT];
+    flowPulseSnapshot(pulses);
+    targetLiters[0] = max(0.0F, jsonNumber(command, "n_target_l", 0));
+    targetLiters[1] = max(0.0F, jsonNumber(command, "p_target_l", 0));
+    targetLiters[2] = max(0.0F, jsonNumber(command, "k_target_l", 0));
+    for (int index = 0; index < PUMP_COUNT; ++index) {
+      targetStartPulses[index] = pulses[index];
+      setPump(index, targetLiters[index] > 0, "");
+    }
+    fertigationActive = anyPumpOn();
+    fertigationState = fertigationActive ? "dosing" : "complete";
   } else if (action == "manual") {
     const String requested = jsonString(command, "manual_action");
     if (requested == "close" || requested == "off") {
@@ -161,6 +295,11 @@ void handleCommand(const String &json) {
     stopAll(action == "mode" ? "mode_changed" : "config_updated");
     controlMode = "manual";
     saveMode();
+    if (action == "config") {
+      pulsesPerLiter[0] = max(1.0F, jsonNumber(command, "n_pulses_per_l", pulsesPerLiter[0]));
+      pulsesPerLiter[1] = max(1.0F, jsonNumber(command, "p_pulses_per_l", pulsesPerLiter[1]));
+      pulsesPerLiter[2] = max(1.0F, jsonNumber(command, "k_pulses_per_l", pulsesPerLiter[2]));
+    }
   } else if (action == "sensor") {
     // Sensor frames are accepted for protocol compatibility but never start a pump.
   } else {
@@ -191,9 +330,15 @@ void setup() {
     pinMode(PUMP_PINS[index], OUTPUT);
     gpio_set_drive_capability(static_cast<gpio_num_t>(PUMP_PINS[index]), GPIO_DRIVE_CAP_3);
     digitalWrite(PUMP_PINS[index], LOW);
+    pinMode(FLOW_PINS[index], INPUT_PULLUP);
   }
+  pinMode(OUTLET_PUMP_PIN, OUTPUT);
+  digitalWrite(OUTLET_PUMP_PIN, LOW);
   pinMode(RAIN_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(RAIN_PIN), onRainTip, FALLING);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PINS[0]), onFlowN, FALLING);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PINS[1]), onFlowP, FALLING);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PINS[2]), onFlowK, FALLING);
   stopAll("boot_safe_off");
   saveMode();
   reportSerialState();
@@ -201,6 +346,7 @@ void setup() {
 
 void loop() {
   pollSerial();
+  updateFertigation();
   // A start command records pumpStartedAt inside pollSerial(). Read the
   // current time afterwards so unsigned subtraction cannot wrap and trigger
   // an immediate false max-runtime shutdown.
@@ -210,6 +356,10 @@ void loop() {
       setPump(index, false, "max_runtime_reached");
       reportSerialState();
     }
+  }
+  if (fertigationActive && now - lastPeriodicReportAt >= 1000) {
+    reportSerialState();
+    lastPeriodicReportAt = now;
   }
   delay(20);
 }

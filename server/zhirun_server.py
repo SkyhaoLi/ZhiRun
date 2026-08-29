@@ -985,7 +985,9 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 device_id = current_valve_device_id()
                 state = _valve_by_device.get(device_id, {}) if device_id else {}
-                if state.get("controllerSchema") != "three_pump_test_rain_v1":
+                if state.get("controllerSchema") not in {
+                    "three_pump_test_rain_v1", "four_relay_independent_flow_v1"
+                }:
                     self.send_json(409, {"ok": False, "message": "three_pump_firmware_required"})
                     return
                 command = queue_valve_command(
