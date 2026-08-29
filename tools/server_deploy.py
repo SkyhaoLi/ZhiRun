@@ -35,10 +35,12 @@ def main():
     )
     sftp = client.open_sftp()
     sftp.put(str(PROJECT / "server" / "zhirun_server.py"), "/tmp/zhirun_server.py.new")
+    sftp.put(str(PROJECT / "server" / "infer_server.py"), "/tmp/zhirun_infer_server.py.new")
     sftp.put(str(PROJECT / "server" / "index.html"), "/tmp/zhirun_index.html.new")
     sftp.close()
 
     run(client, "/opt/zhirun/.venv/bin/python -m py_compile /tmp/zhirun_server.py.new")
+    run(client, "/opt/zhirun/.venv/bin/python -m py_compile /tmp/zhirun_infer_server.py.new")
     run(
         client,
         "test -e /opt/zhirun/server/zhirun_server.py.pre-rk3506 || "
@@ -49,9 +51,12 @@ def main():
         "test -n \"$state\" || state=/opt/zhirun/server/.zhirun_state.json; "
         "test ! -e \"$state\" -o -e \"$state.pre-rk3506\" || cp -p \"$state\" \"$state.pre-rk3506\"; "
         "install -o zhirun -g zhirun -m 0644 /tmp/zhirun_server.py.new /opt/zhirun/server/zhirun_server.py; "
+        "install -o zhirun -g zhirun -m 0644 /tmp/zhirun_infer_server.py.new /opt/zhirun/server/infer_server.py; "
         "install -o zhirun -g zhirun -m 0644 /tmp/zhirun_index.html.new /opt/zhirun/server/index.html; "
-        "systemctl restart zhirun-server.service; sleep 8; "
+        "systemctl restart zhirun-infer.service zhirun-server.service; sleep 8; "
+        "systemctl is-active zhirun-infer.service; "
         "systemctl is-active zhirun-server.service; "
+        "curl -fsS http://127.0.0.1:10001/health; echo; "
         "curl -fsS http://127.0.0.1:10000/data; echo; "
         "curl -fsS http://127.0.0.1:10000/api/devices; echo; "
         "curl -fsS http://127.0.0.1:10000/schema; echo",

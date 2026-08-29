@@ -115,6 +115,23 @@ def first_value(body, *keys, default=None):
     return default
 
 
+def invalid_zero_soil_frame(body):
+    """Detect a powered sensor whose measurement electrodes have no valid sample."""
+    values = (
+        first_value(body, "soil_moisture_20_pct", "moisture20", "soilMoist"),
+        first_value(body, "soil_ec_ds_m", "soilEc", "soil_ec"),
+        first_value(body, "soil_n_mg_kg", "n"),
+        first_value(body, "soil_p_mg_kg", "p"),
+        first_value(body, "soil_k_mg_kg", "k"),
+    )
+    if any(value is None for value in values):
+        return False
+    try:
+        return all(float(value) <= 0 for value in values)
+    except (TypeError, ValueError):
+        return False
+
+
 def observation_time(body, crop):
     supplied = first_value(body, "observation_time", "date")
     if supplied:
@@ -133,6 +150,7 @@ def environment_from_request(body, crop):
         {"longitude": first_value(body, "longitude", default=sensor.get("longitude", _defaults[1]))},
         "longitude", _defaults[1], -180, 180,
     )
+    zero_soil_frame = invalid_zero_soil_frame(body)
     mappings = {
         "air_temperature_c": ("air_temperature_c", "airTemp"),
         "air_humidity_pct": ("air_humidity_pct", "airHum"),
@@ -151,11 +169,15 @@ def environment_from_request(body, crop):
         "weather_forecast": ("weather_forecast",),
     }
     for target, keys in mappings.items():
+        if zero_soil_frame and target in {
+            "soil_n_mg_kg", "soil_p_mg_kg", "soil_k_mg_kg", "soil_ph", "soil_ec_ds_m",
+        }:
+            continue
         value = first_value(body, *keys)
         if value is not None:
             sensor[target] = value
     moisture20 = first_value(body, "soil_moisture_20_pct", "moisture20", "soilMoist")
-    if moisture20 is not None:
+    if moisture20 is not None and not zero_soil_frame:
         sensor["soil_moisture_20_pct"] = moisture20
         sensor["soil_moisture_40_pct"] = first_value(
             body, "soil_moisture_40_pct", "moisture40", default=moisture20
@@ -170,6 +192,7 @@ def environment_from_request(body, crop):
     sensor["source"] = {
         **(sensor.get("source") if isinstance(sensor.get("source"), dict) else {}),
         "sensors": "ZhiRun realtime request",
+        **({"soil_sensor": "invalid_zero_frame; regional prior applied"} if zero_soil_frame else {}),
     }
     return _provider.fetch(
         latitude,
