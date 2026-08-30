@@ -1,8 +1,10 @@
+import json
 import unittest
+from unittest.mock import patch
 
 from scripts.build_job import HARDWARE
 from scripts.controller import FlowController, SensorFrame, State
-from scripts.fertigation_model import EnvironmentInput, FertigationModel, dynamic_irrigation_threshold
+from scripts.fertigation_model import EnvironmentInput, EnvironmentProvider, FertigationModel, dynamic_irrigation_threshold
 from scripts.recommend import CONFIG
 
 
@@ -32,6 +34,33 @@ def dry_environment() -> EnvironmentInput:
 
 
 class FertigationModelTests(unittest.TestCase):
+    def test_open_meteo_requests_wind_in_metres_per_second(self):
+        payload = {
+            "current": {"time": "2026-08-30T12:00", "wind_speed_10m": 4.5},
+            "daily": {
+                "time": ["2026-08-30"], "precipitation_sum": [0],
+                "et0_fao_evapotranspiration": [4], "temperature_2m_max": [25],
+                "temperature_2m_min": [12], "relative_humidity_2m_mean": [60],
+                "wind_speed_10m_max": [5.2], "shortwave_radiation_sum": [20],
+            },
+        }
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps(payload).encode("utf-8")
+
+        with patch("scripts.fertigation_model.urllib.request.urlopen", return_value=Response()) as mocked:
+            weather = EnvironmentProvider()._open_meteo(40.84, 111.75)
+        self.assertIn("wind_speed_unit=ms", mocked.call_args.args[0].full_url)
+        self.assertEqual(weather["wind_speed_m_s"], 4.5)
+        self.assertEqual(weather["weather_forecast"][0]["wind_speed_m_s"], 5.2)
+
     def test_only_manual_fields_are_concentrations_and_are_used_for_dose_volume(self):
         result = FertigationModel(use_ml=False).plan(200, 100, 50, dry_environment())
         self.assertTrue(result["job"]["doses"])
@@ -91,6 +120,28 @@ class FertigationModelTests(unittest.TestCase):
         self.assertEqual(result["automatic_inputs"]["forecast_summary"]["temperature_max_c"], 36.0)
         self.assertEqual(result["model_features"]["t_max"], 36.0)
         self.assertEqual(result["decision"]["dynamic_trigger_relative_fc"], adjusted["dynamic_trigger_fc"])
+
+    def test_no_water_demand_is_not_reported_as_a_safety_block(self):
+        environment = dry_environment()
+        environment.soil_moisture_20_pct = 24
+        environment.soil_moisture_40_pct = 24
+        environment.soil_moisture_60_pct = 24
+        result = FertigationModel(use_ml=False).plan(100, 80, 120, environment)
+        self.assertFalse(result["decision"]["irrigate"])
+        self.assertEqual(result["decision"]["execution_status"], "not_needed")
+        self.assertIn("高于", result["decision"]["execution_reason"])
+
+    def test_high_wind_blocks_an_existing_water_demand(self):
+        environment = dry_environment()
+        environment.weather_forecast = [{
+            "date": "2026-07-20", "rain_mm": 0, "eto_mm": 5.5,
+            "tmax_c": 27, "tmin_c": 18, "humidity_pct": 45,
+            "wind_speed_m_s": 10.5, "light_lux": 30000,
+        }]
+        result = FertigationModel(use_ml=False).plan(100, 80, 120, environment)
+        self.assertFalse(result["decision"]["irrigate"])
+        self.assertEqual(result["decision"]["execution_status"], "safety_blocked")
+        self.assertIn("风速", result["decision"]["execution_reason"])
 
 
 if __name__ == "__main__":

@@ -355,6 +355,7 @@ class EnvironmentProvider:
         params = {
             "latitude": latitude, "longitude": longitude, "timezone": "Asia/Shanghai",
             "forecast_days": 3,
+            "wind_speed_unit": "ms",
             "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation,precipitation,soil_temperature_0cm,soil_moisture_0_to_1cm",
             "daily": "precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,wind_speed_10m_max,shortwave_radiation_sum",
         }
@@ -603,6 +604,8 @@ class FertigationModel:
                 "crop": self.crop, "stage": "休耕/非生育期", "irrigation_m3_mu": 0.0,
                 "nitrogen_kg_mu": 0.0, "p2o5_kg_mu": 0.0, "k2o_kg_mu": 0.0,
                 "fertigate": False, "irrigate": False,
+                "execution_status": "not_needed",
+                "execution_reason": "当前日期不在配置的作物生育期",
                 "alerts": ["当前日期不在配置的作物生育期，硬件保持关闭"],
                 "model": "season-safety-gate",
             }
@@ -634,7 +637,8 @@ class FertigationModel:
         if prediction is None:
             prediction = [teacher["irrigation_m3_mu"], teacher["nitrogen_kg_mu"], teacher["p2o5_kg_mu"], teacher["k2o_kg_mu"]]
 
-        physical_gate = teacher["irrigate"]
+        irrigation_demand = bool(teacher["irrigate"])
+        physical_gate = irrigation_demand
         wind_block = float(forecast["wind_max_m_s"]) > 10.0
         if wind_block:
             physical_gate = False
@@ -657,10 +661,26 @@ class FertigationModel:
         nutrients[1] = min(nutrients[1], p_remaining, 1.5)
         nutrients[2] = min(nutrients[2], k_remaining, 3.0)
         nutrients = [0.0 if x < 0.05 else round(x, 2) for x in nutrients]
+        if water > 0:
+            execution_status = "ready"
+            execution_reason = "灌溉条件和安全条件均已满足，可审核后执行"
+        elif irrigation_demand and wind_block:
+            execution_status = "safety_blocked"
+            execution_reason = "存在灌溉需求，但预报风速超过10 m/s，安全门暂停执行"
+        elif not irrigation_demand:
+            execution_status = "not_needed"
+            execution_reason = (
+                f"根区水分为田间持水量的{root_moisture / fc * 100:.1f}%，"
+                f"高于本阶段{threshold['dynamic_trigger_fc'] * 100:.1f}%的灌溉触发线"
+            )
+        else:
+            execution_status = "below_minimum"
+            execution_reason = "模型建议灌水量低于0.5 m³/亩的最小执行量"
         decision = {
             "crop": self.crop, "stage": stage, "irrigate": water > 0, "irrigation_m3_mu": round(water, 1),
             "fertigate": any(nutrients), "nitrogen_kg_mu": nutrients[0], "p2o5_kg_mu": nutrients[1],
             "k2o_kg_mu": nutrients[2], "root_zone_moisture_pct": round(root_moisture, 2),
+            "execution_status": execution_status, "execution_reason": execution_reason,
             "relative_field_capacity": round(root_moisture / fc, 3),
             "base_trigger_relative_fc": threshold["base_trigger_fc"],
             "dynamic_trigger_relative_fc": threshold["dynamic_trigger_fc"],

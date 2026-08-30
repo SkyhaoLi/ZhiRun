@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SERVER_DIR = os.path.join(ROOT, "server")
 MODEL_DIR = os.environ.get(
     "ZHIRUN_MODEL_SOURCE",
-    os.path.join(os.path.expanduser("~"), "Desktop", "灌溉模型"),
+    os.path.join(ROOT, "灌溉模型", "灌溉模型"),
 )
 
 
